@@ -42,7 +42,10 @@ jobs:
         run: pnpm i
         
       - name: Build with Vite
-        run: pnpm run build
+        run: |
+          pnpm run build
+          cp -r build/client/hermes/* build/client/
+          rm -rf build/client/hermes
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
