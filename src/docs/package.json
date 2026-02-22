@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "react-router build",
+    "build": "react-router build && pnpm run postbuild",
+    "postbuild": "node -e \"const fs=require('fs'); const path=require('path'); const walk=(dir)=>{fs.readdirSync(dir).forEach(f=>{const p=path.join(dir,f); if(fs.statSync(p).isDirectory()) walk(p); else if(p.endsWith('.html')){ let c=fs.readFileSync(p,'utf8'); c=c.replace(/\\\"mode\\\":\\\"lazy\\\",\\\"manifestPath\\\":\\\"\\/__manifest\\\"/g, '\\\"mode\\\":\\\"eager\\\"'); fs.writeFileSync(p,c); }})}; walk('build/client');\"",
     "dev": "react-router dev",
     "start": "serve ./build/client --config ../../serve.json",
     "types:check": "react-router typegen && fumadocs-mdx && tsc --noEmit",
