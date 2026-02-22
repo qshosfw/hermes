@@ -5,10 +5,9 @@ import { createGetUrl, getSlugs } from 'fumadocs-core/source';
 const getUrl = createGetUrl('/docs');
 
 export default {
-  ssr: true,
+  ssr: false,
   basename: '/hermes/',
   future: {
-    v8_middleware: true,
   },
   async prerender({ getStaticPaths }) {
     const paths: string[] = [];
