@@ -2,10 +2,11 @@ import type { Config } from '@react-router/dev/config';
 import { glob } from 'node:fs/promises';
 import { createGetUrl, getSlugs } from 'fumadocs-core/source';
 
-const getUrl = createGetUrl('/docs');
+const getUrl = createGetUrl('/hermes/docs');
 
 export default {
   ssr: false,
+  basename: '/hermes/',
   future: {
     v8_middleware: true,
   },
