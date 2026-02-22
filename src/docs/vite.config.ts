@@ -4,15 +4,24 @@ import { defineConfig } from 'vite';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import mdx from 'fumadocs-mdx/vite';
 import * as MdxConfig from './source.config';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   base: '/hermes/',
   plugins: [
-    mdx(MdxConfig),
-    tailwindcss(),
-    reactRouter(),
     tsconfigPaths({
       projects: ['./tsconfig.json'],
     }),
+    mdx(MdxConfig),
+    tailwindcss(),
+    reactRouter(),
   ],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './app'),
+    },
+  },
 });
