@@ -1,0 +1,65 @@
+---
+title: Application Settings
+description: Structuring Network Config, Node Parameters, and Hardware Variables 
+---
+
+# 4. App Settings & Configuration
+
+To effectively decouple complex Radio parameters from generic networking rules inside a constrained 128x64 display, Settings should be hierarchically divided.
+
+Network and Node configurations dictate radically different behavioral modes and must be segregated logically within the UI structure to avoid user confusion.
+
+## 4.1 Node Settings (Hardware Layer)
+
+Node parameters dictate localized rules that exclusively apply to the physical device. They operate independently of the Mesh topology or any routing configuration metrics.
+
+**Menu: `Main > Settings > Node Config`**
+
+```text
+┌─────────────────────────────────────┐
+│[|||]           NODE CONFIG     8.4V │
+├─────────────────────────────────────┤
+│ > 1. Backlight: Always On           │
+│   2. Squelch Level: 2               │
+│   3. FSK Rate: 1.2k bps             │
+│   4. Speaker: Tone Only             │
+│   5. Key Beeps: Disabled            │
+│                                     │
+└─────────────────────────────────────┘
+```
+
+| Parameter | Type | Description |
+|:---|:---:|:---|
+| `Backlight` | Toggle | Options: Off, Always On, 5s Rx/Tx timer. |
+| `Squelch Level` | Integer`0-9` | Native RF squelch override. In Messenger modes, typically configured as `1` for maximum FSK sensitivity. |
+| `FSK Rate` | List | Options: `1.2k`, `2.4k` (Currently Hermes relies strictly on 1.2kbps for maximum link margin natively across BK4819). |
+| `Speaker` | Toggle | Disables analog audio output to prevent raw FSK noise bleeding through the front chassis speaker. |
+
+## 4.2 Network Settings (Transport Layer)
+
+Network settings dictate Hermes-specific mathematical constants required to correctly parse, decode, and transmit payloads in sync across an established Topography.
+
+If any of these settings desync with other nodes on the current mesh iteration (other than Ping metrics), all incoming communications will drop mathematically due to mismatched Poly1305 AEAD validation failures.
+
+**Menu: `Main > Settings > Network Config`**
+
+```text
+┌─────────────────────────────────────┐
+│[|||]            NET CONFIG     8.4V │
+├─────────────────────────────────────┤
+│ > 1. Master Key: [0x00...]          │
+│   2. Network ID: 121                │
+│   3. TTL Hops: 5 (Max)              │
+│   4. Node Alias: @W7A               │
+│   5. Sync Word: [44:33:22:11]       │
+│                                     │
+└─────────────────────────────────────┘
+```
+
+| Parameter | Type | Description |
+|:---|:---:|:---|
+| `Master Key` | 32-Byte Array | The root cipher seed utilized via ChaCha20/Poly1305. Editing this is intensely critical and demands a secondary confirmation UI pop-up (Multi-Tap hex entry). |
+| `Network ID` | Integer | Logical string representation grouping frequency hops or Network iteration versions. |
+| `TTL Hops` | Integer`1-15` | Defines the maximum Time-to-Live network propagation (flooding) depth before packets exhaust routing resources and drop physically from the air. Higher TTL implies heavy mesh density strain but extreme range. |
+| `Sync Word` | 4-Byte Hex | The Physical Layer (`REG_5A, REG_5B`) target defining the FSK start-frame sequence. |
+| `Node Alias` | 16-Char Tag | Human-readable string representing this exact hardware device appended atop Discovery/Telemetry blobs. |

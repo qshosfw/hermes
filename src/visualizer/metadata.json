@@ -1,0 +1,5 @@
+{
+  "name": "Hermes Link Interactive Protocol Visualizer",
+  "description": "An interactive demo that visualizes the Hermes Link AFSK1200 packet radio protocol. Explore the binary frame construction, FSK waveform, hex dumps, and the entire physical frame encoding process from raw data to modulated signal.",
+  "requestFramePermissions": []
+}

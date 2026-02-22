@@ -1,0 +1,127 @@
+---
+title: Channels & Delivery Mapping
+description: UI representation of `#topics`, `@unicast`, `!broadcast`, and `?discovery` semantics
+---
+
+# 3. Channel Delivery & Routing UI
+
+When structuring chat windows or transmission triggers on a localized monochrome device (e.g. UV-K5), Hermes necessitates logical prefixes to denote exactly what "delivery bounds" the resulting transmission is employing.
+
+It is critically important for users to understand at a glance whether they are talking *privately* to another user or loudly over a *public group*.
+
+## 3.1 Lexical Semantics
+
+A proper User Interface groups these actions using the following character prefixes:
+
+- `@` : **Unicast (Private Node / Contact)** 
+- `#` : **Multicast (Topic / Group Address)**
+- `!` : **Broadcast (Network Wide)**
+- `?` : **Discovery Subnet**
+
+### 3.1.1 `@ Unicast (Contact-to-Contact)`
+
+Focused on 1-to-1 reliable delivery via `Type 0: ACK`.
+
+```text
+┌─────────────────────────────────────┐
+│[|||]            @JohnDoe       8.6V │
+├─────────────────────────────────────┤
+│ > Where are you?                    │
+│ [ACK] Rx: -85dBm                    │
+│                                     │
+│ > Send Status                       │
+│                                     │
+└─────────────────────────────────────┘
+```
+
+### 3.1.2 `# Multicast (Topics)`
+
+Group communication using a shared static secret derived from the topic string.
+
+```text
+┌─────────────────────────────────────┐
+│[|||]            #Weather       8.4V │
+├─────────────────────────────────────┤
+│ [@Base]: Storm rolling in.          │
+│ [@SiteB]: Copy. Checking antenna.   │
+│                                     │
+│ > Typing...                         │
+└─────────────────────────────────────┘
+```
+
+### 3.1.3 `! Broadcast (Global Feed)`
+
+Blind transmission to the `FF:FF:FF:FF:FF:FF` address.
+
+```text
+┌─────────────────────────────────────┐
+│[|||]           !BROADCAST      7.4V │
+├─────────────────────────────────────┤
+│ [@HQ] EVACUATE ZONE B.              │
+│ [@Lead] All units copy.             │
+│                                     │
+│ >                                   │
+└─────────────────────────────────────┘
+```
+
+### 3.1.4 `? Discovery (Neighbor Table)`
+
+The Discovery Subnet (`DD:DD:DD`) maintains a volatile list of all heard Nodes. This table is strictly sorted by **Signal Strength (RSSI)**, ensuring the most accessible neighbors stay at the top of the interface.
+
+#### Neighbor Registry View
+```text
+┌─────────────────────────────────────┐
+│[?]              NEIGHBORS      8.1V │
+├─────────────────────────────────────┤
+│ > K7XYZ_99    -82dBm    [|||]       │
+│   RELAY_02    -102dBm   [|| ]       │
+│   BASE_HQ     -110dBm   [|  ]       │
+│                                     │
+└─────────────────────────────────────┘
+```
+
+#### Selection Prompt
+Upon selecting an entry from the Discovery list, the hardware provides an interaction prompt to register the Node ID as a persistent Contact.
+
+```text
+┌─────────────────────────────────────┐
+│[?]              NEW NODE       8.1V │
+├─────────────────────────────────────┤
+│ Register Node: [K7XYZ_99]           │
+│                                     │
+│ > [SAVE AS CONTACT]                 │
+│   [PING NEIGHBOR]                   │
+│   [BACK]                            │
+└─────────────────────────────────────┘
+```
+
+---
+
+## 3.2 Non-Text (Openable) Packets
+
+Not all packets in a chat thread are plain text. `Type 1 (Ping)` and `Type 3 (Telemetry)` packets are rendered as "Openable" blocks that provide detailed technical or status info when selected.
+
+### Interactive Packet Blobs
+```text
+┌─────────────────────────────────────┐
+│[|||]            @Relay_A       8.2V │
+├─────────────────────────────────────┤
+│ [RELAY]: Link is stable.            │
+│ [PING] << Open to View Specs        │
+│ [TELEM]<< Node Health Info          │
+│                                     │
+│ >                                   │
+└─────────────────────────────────────┘
+```
+
+#### Ping Detail View
+When opening a `[PING]` block:
+- **Hops Path:** List of Node IDs the packet traversed.
+- **Latency:** Round-trip timing metrics.
+
+#### Telemetry Detail View
+When opening a `[TELEM]` block:
+- **Voltage:** Remote battery status.
+- **Temperature:** Internal PA/Logic temps.
+- **Uptime:** How long the remote node has been active.
+- **Location:** Lat/Long coordinates (if GPS enabled).

@@ -1,0 +1,9 @@
+{
+    "title": "Device UI & UX",
+    "pages": [
+        "01-screen-layout",
+        "02-contacts",
+        "03-channels-routing",
+        "04-settings"
+    ]
+}

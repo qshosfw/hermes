@@ -4,8 +4,16 @@
 
 Hermes Link is an AFSK1200 packet radio protocol primarily targeting limited digital transceivers such as the Quansheng UV-K5, TK11, and other Beken BK4819 radios.
 
-# [📟 The Protocol](https://github.com/qshosfw/hermes/wiki/📟-The-Protocol)
-## - [1. Modulation](https://github.com/qshosfw/hermes/wiki/1.-Modulation)
-## - [2. Frame](https://github.com/qshosfw/hermes/wiki/2.-Frame)
-## - [3. Packet](https://github.com/qshosfw/hermes/wiki/3.-Packet)
-## - [4. Network](https://github.com/qshosfw/hermes/wiki/4.-Network)
+# 📖 Interactive Documentation
+
+We have moved our documentation to a new, interactive wiki built with Fumadocs and shadcn/ui. 
+
+👉 **[View the Hermes Protocol Documentation](https://qshosfw.github.io/hermes/)**
+
+---
+
+### Previous Wiki Links (Deprecated)
+- [1. Modulation](https://github.com/qshosfw/hermes/wiki/1.-Modulation)
+- [2. Frame](https://github.com/qshosfw/hermes/wiki/2.-Frame)
+- [3. Packet](https://github.com/qshosfw/hermes/wiki/3.-Packet)
+- [4. Network](https://github.com/qshosfw/hermes/wiki/4.-Network)

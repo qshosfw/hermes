@@ -1,0 +1,55 @@
+---
+title: Type 2 Message
+description: Text, custom string, and GSM-7 data representation
+---
+
+# 11. Type 2: Message 
+
+The **Type 2** Packet serves as the generic string, text, file block, and custom byte wrapper protocol structure. By completely discarding physical routing rules or telemetric constraints, it maximizes the entire 54-Byte payload window to transport standard character bits.
+
+If the Transport Header fragment indicators expand out to fully utilize all `16` array indexes (`0-15` `Fragment Index`), the message structure expands to a whopping **864 Bytes** representing standard concatenated characters over the mesh.
+
+The payload explicitly has no formal requirement dictating exactly how these 54 bytes are cast, however standard ASCII text blocks represent the predominant use case.
+
+## 11.1 Standard GSM-7 Encoding
+
+Out-of-the-box text messengers utilizing Hermes typically bypass UTF-8 formatting and standard `8-bit` ASCII constraints, opting alternatively to format the characters directly via **GSM-7** specifications. 
+
+GSM-7 mapping effectively encodes highly frequent alphabet SMS characters directly into **7 bits** instead of a traditional 1-byte unit, netting a direct **14.29% increase** in text capacity per physical FSK1200 payload transmission.
+
+Each character in the GSM 7-bit alphabet (termed a **septet**) is packed neatly into the 8-bit stream using **bitwise concatenation across physical byte boundaries**. 
+
+- The 1st septet occupies the 1st byte (bits 0–6), leaving 1 bit unused.
+- The 2nd septet physically shifts over by 1 place, storing cleanly starting from bit 7 of byte 1 and pushing outward into bits 0–5 of byte 2.
+- The 3rd septet shifts by 2 and packs beginning from bit 6 of byte 2, and so on repeatedly structure.
+
+This cyclical packing mechanism is reiterated until every `(n * 7)` bit is compacted into roughly `ceil(n * 7 / 8)` total bytes.
+
+```mermaid
+flowchart TD
+    subgraph "Standard ASCII (8-Bit)"
+        A1["Char 1<br>(8 bits)"]
+        A2["Char 2<br>(8 bits)"]
+        A3["Char 3<br>(8 bits)"]
+    end
+    
+    subgraph "GSM-7 Bitwise Packing (7-Bit) into byte array"
+        B1["Byte 1<br>Bits 0-6: Char 1<br>Bit 7: Char 2 (bit 0)"]
+        B2["Byte 2<br>Bits 0-5: Char 2 (bits 1-6)<br>Bits 6-7: Char 3 (bits 0-1)"]
+        B3["Byte 3<br>Bits 0-4: Char 3 (bits 2-6)<br>..."]
+    end
+    
+    A1 -. "Extract 7 Bits" .-> B1
+    A2 -. "Extract 7 Bits" .-> B1
+    A2 -. "Shift remaining" .-> B2
+    A3 -. "Shift remaining" .-> B2
+    A3 -. "Shift further" .-> B3
+    
+    classDef clear fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:#ffffff
+    classDef complex fill:#0f172a,stroke:#6366f1,stroke-width:2px,color:#ffffff
+    
+    class A1,A2,A3 clear
+    class B1,B2,B3 complex
+```
+
+> **Visual Note:** To see the precise ASCII boundaries and GSM-7 characters natively supported by the string tables, please reference the Hermes Interactive Visualizer mapping models.

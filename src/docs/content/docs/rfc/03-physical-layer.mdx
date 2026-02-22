@@ -1,0 +1,126 @@
+---
+title: Physical Layer
+description: Setup and details for FSK1200 modulation, Preamble, and Sync Word
+---
+
+import PsdGraphMDX from '@/components/visualizer/PsdGraphMDX';
+import SyncWordStatsMDX from '@/components/visualizer/SyncWordStatsMDX';
+import AutocorrelationGraphMDX from '@/components/visualizer/AutocorrelationGraphMDX';
+import PhysicalFrameVisualizerMDX from '@/components/visualizer/PhysicalFrameVisualizerMDX';
+import OverheadChartMDX from '@/components/visualizer/OverheadChartMDX';
+import { RadioTower, Cpu, Settings2, Sigma } from 'lucide-react';
+
+# <RadioTower className="inline w-6 h-6 mr-2 text-blue-400" /> 3. Physical Layer
+
+The Physical Layer defines the actual RF modulation settings applied directly to the BK4819 transceiver registers to operate the Hermes protocol.
+
+## <Cpu className="inline w-5 h-5 mr-2 text-indigo-400" /> 3.1 FSK1200 Modulation
+
+<PsdGraphMDX />
+
+We configure the BK4819 for narrow-band FSK at **1.2 kbps** to maximize link margin. Running the baud rate incredibly low is the key enabler behind communicating through heavy noise floor environments under poor signal conditions.
+
+FSK mode is engaged by writing `REG_58<0> = 1`. 
+
+Both the Transmit and Receive clock sources are subsequently locked to the 1.2 kbps specification (`REG_58<15:10> = 000`).
+
+```c
+// BK4819 Transceiver FSK Setup (Kamilsss Firmware Implementation)
+void BK4819_FskInit(void) {
+    // FSK Enable, FSK 1.2K RX Bandwidth, Preamble 0xAA or 0x55
+    BK4819_WriteRegister(BK4819_REG_58, 0x00C1);
+    
+    // Hardware settings and Payload length (72 bytes)
+    BK4819_WriteRegister(BK4819_REG_5C, 0x5665);
+    BK4819_WriteRegister(BK4819_REG_5D, 0x4700); 
+    
+    // Clear FIFOs and sync bits
+    BK4819_WriteRegister(BK4819_REG_02, 0);
+    BK4819_WriteRegister(BK4819_REG_3F, 0);
+}
+```
+
+## <Settings2 className="inline w-5 h-5 mr-2 text-emerald-400" /> 3.2 FSK Frame Components
+
+The baseline hardware FSK Frame structure operates in 3 distinct stages: Preamble, Sync Word, and Data Payload.
+
+| Field | Description |
+|--------:|---------------:|
+| **1~16 bytes**   | Preamble  |
+| **2 or 4 bytes** | Sync Word |
+| **128 bytes** | Encoded Data Frame  |
+| **2 bytes** | CRC (Hardware Layer Checksum) |
+
+```mermaid
+graph LR
+    A["Preamble<br>(16 Bytes)"] --- B["Sync Word<br>(4 Bytes)"] --- C["Data Payload<br>(128 Bytes)"] --- D["CRC<br>(Disabled)"]
+    classDef default fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:#ffffff;
+    class D fill:#451a03,stroke:#ef4444,stroke-width:2px,color:#ffffff;
+```
+
+> **Hardware CRC Disabled:** The Protocol Frame does **not** rely on the default hardware CRC checksum. We explicitly set it to disable CRC checks, as they would be useless given our custom Reed-Solomon Forward Error Correction over the data payload. A hardware CRC drop would prematurely reject frames that our data-link layer could easily correct.
+
+## <Sigma className="inline w-5 h-5 mr-2 text-rose-400" /> 3.3 Sync Word & Preamble Configuration
+
+<SyncWordStatsMDX />
+<AutocorrelationGraphMDX />
+
+### 3.3.1 Preamble 
+A long preamble allows the receiver's AGC and bit-sync loops ample time to lock onto the incoming FSK transmission. 
+
+We maximize the preamble to a full **16 bytes**.
+We utilize either an alternating `0xAA` (`10101010`) or `0x55` (`01010101`) preamble pattern, cleanly depending on the Most Significant Bit of the first Sync Byte to ensure a pristine transition.
+
+### 3.3.2 Sync Word
+The Sync Word essentially acts as the "lock-on" identifier for the packet body. The hardware won't begin capturing the Data portion until it sees this exact byte sequence.
+
+The default 4-byte Sync Word is a precisely calculated sequence: **`0x2F 0x2A 0x11 0xDB`**.
+
+It acts as a high-entropy identifier with mathematically optimized auto-correlation properties derived to minimize the chances of false-positives against ambient RF noise.
+
+```c
+// BK4819 TX/RX Messaging Control (Kamilsss Firmware Implementation)
+
+void BK4819_PrepareFSKReceive(void) {
+    BK4819_WriteRegister(BK4819_REG_3F, 0);
+    BK4819_RX_TurnOn();
+    
+    // Expect FIFO Almost Full and RX Finished interrupts
+    BK4819_WriteRegister(BK4819_REG_3F, BK4819_REG_3F_FSK_RX_FINISHED | BK4819_REG_3F_FSK_FIFO_ALMOST_FULL);
+
+    // Write Sync Word (0x2F, 0x2A, 0x11, 0xDB)
+    BK4819_WriteRegister(BK4819_REG_5A, 0x2F2A); 
+    BK4819_WriteRegister(BK4819_REG_5B, 0x11DB);
+
+    // Setup FSK RX Preamble/Sync parameters
+    BK4819_WriteRegister(BK4819_REG_59, 0x3068);
+}
+
+void BK4819_SendFSKData(uint16_t *pData) {
+    BK4819_WriteRegister(BK4819_REG_3F, BK4819_REG_3F_FSK_TX_FINISHED);
+    
+    // Reset and initialize TX FIFO
+    BK4819_WriteRegister(BK4819_REG_59, 0x8068);
+    BK4819_WriteRegister(BK4819_REG_59, 0x0068);
+
+    // Load data payload (36 words / 72 bytes)
+    for (uint16_t i = 0; i < 36; i++) {
+        BK4819_WriteRegister(BK4819_REG_5F, pData[i]);
+    }
+
+    // Enable TX and shift FSK out
+    BK4819_WriteRegister(BK4819_REG_59, 0x2868);
+}
+```
+
+## 3.4 Interactive Visualizer: Frame Structure
+
+The entire FSK1200 frame layout, from Preamble to Signature and Parity bytes, is physically illustrated below in relative size mappings.
+
+<PhysicalFrameVisualizerMDX />
+
+### Framing Overhead Analysis
+
+Because the baud rate is aggressively low (1.2 kbps), airtime is heavily constrained. The chart below explicitly maps the bytes attributed to Application payload vs the overhead needed to physically route, encode, and transmit the data securely.
+
+<OverheadChartMDX />

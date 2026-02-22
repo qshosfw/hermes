@@ -1,0 +1,16 @@
+---
+title: Raw Packet Builder
+description: Interactive protocol frame generator and bit-level hex inspector 
+---
+
+# Interactive Packet Builder
+
+The Packet Builder is a comprehensive decoding and encoding diagnostic tool. It allows developers to manually construct full Hermes Protocol frames layer-by-layer, adjusting addressing flags, payload content, and cryptographic parameters in real-time.
+
+Use this tool to generate mock hex-strings for embedding in your own firmware unit tests or to visualize exactly how the bits are packed over the air.
+
+import PacketPlaygroundMDX from '@/components/visualizer/PacketPlaygroundMDX';
+
+<div className="not-prose mt-8 mb-4 min-w-full lg:w-[150%] lg:-ml-[25%] xl:w-[160%] xl:-ml-[30%]">
+    <PacketPlaygroundMDX />
+</div>

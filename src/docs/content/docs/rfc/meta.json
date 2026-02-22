@@ -1,0 +1,18 @@
+{
+    "title": "Hermes RFCs",
+    "pages": [
+        "01-introduction",
+        "02-architecture",
+        "03-physical-layer",
+        "04-data-link-layer",
+        "05-transport-layer",
+        "06-security",
+        "07-routing",
+        "08-payload-overview",
+        "09-payload-ack",
+        "10-payload-ping",
+        "11-payload-message",
+        "12-payload-telemetry",
+        "13-payload-discovery"
+    ]
+}

@@ -1,0 +1,113 @@
+---
+title: Welcome to Hermes
+description: The official interactive documentation for the Hermes Protocol.
+---
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Terminal } from 'lucide-react';
+
+<img alt="logo" src="https://github.com/user-attachments/assets/16968947-be8a-47e0-9367-90a60efec92d" className="mb-8 w-[350px]" />
+
+# Hermes Protocol
+
+Hermes Link is an AFSK1200 packet radio protocol primarily targeting limited digital transceivers such as the Quansheng UV-K5, TK11, and other Beken BK4819 radios.
+
+The name **Hermes Link** is inspired by **Hermes**, the Greek god of communication, travel, and boundaries, who served as the divine messenger of the Olympian gods. Known for his speed, cunning, and ability to move freely between worlds.
+
+This specification aims to implement facilitated message authentication, mesh flooding, encryption, channel hopping, and other quality improvements compared to the original UV-K5 messenger.
+
+<Alert className="mt-6 mb-8">
+  <Terminal className="h-4 w-4" />
+  <AlertTitle>Current Status</AlertTitle>
+  <AlertDescription>
+    The protocol is currently under active development. Specifications may change.
+  </AlertDescription>
+</Alert>
+
+## Core Features
+
+We built Hermes to be fast, reliable, and accessible on affordable radio hardware.
+
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+  <Card>
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2">
+        Mesh Networking <Badge variant="secondary">Core</Badge>
+      </CardTitle>
+      <CardDescription>Decentralized multi-hop communication</CardDescription>
+    </CardHeader>
+    <CardContent>
+      Nodes automatically route packets for others, extending the effective range of the network far beyond point-to-point limitations.
+    </CardContent>
+  </Card>
+  
+  <Card>
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2">
+        FSK1200 <Badge variant="outline">Modulation</Badge>
+      </CardTitle>
+      <CardDescription>Robust and reliable</CardDescription>
+    </CardHeader>
+    <CardContent>
+      Leverages proven FSK1200 modulation for excellent signal robustness even in challenging RF environments.
+    </CardContent>
+  </Card>
+
+  <Card>
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2">
+        Secure & Encrypted <Badge>Security</Badge>
+      </CardTitle>
+      <CardDescription>ChaCha20-Poly1305</CardDescription>
+    </CardHeader>
+    <CardContent>
+      Implements proper AEAD authenticated encryption to ensure network and payload confidentiality and integrity.
+    </CardContent>
+  </Card>
+
+  <Card>
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2">
+        UVK5 Optimized <Badge>Hardware</Badge>
+      </CardTitle>
+      <CardDescription>Built for Quansheng</CardDescription>
+    </CardHeader>
+    <CardContent>
+      Specifically tailored to maximize the capabilities of the BK4819 RF chip found in Quansheng UVK5v3/UVK1 radios.
+    </CardContent>
+  </Card>
+</div>
+
+## Navigation
+
+Explore the full Hermes Link protocol specifics by reading through our exhaustive RFC-style documentation:
+
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+  <div>
+    ### Core Architecture
+    - [01. Introduction](/docs/rfc/01-introduction)
+    - [02. Architecture](/docs/rfc/02-architecture)
+    - [03. Physical Layer](/docs/rfc/03-physical-layer)
+    - [04. Data Link Layer](/docs/rfc/04-data-link-layer)
+    - [05. Transport Layer](/docs/rfc/05-transport-layer)
+    - [06. Security](/docs/rfc/06-security)
+    - [07. Routing](/docs/rfc/07-routing)
+    - [08. Payload Overview](/docs/rfc/08-payload-overview)
+  </div>
+  <div>
+    ### Payload Specifications
+    - [09. Type 0: ACK](/docs/rfc/09-payload-ack)
+    - [10. Type 1: PING](/docs/rfc/10-payload-ping)
+    - [11. Type 2: MESSAGE](/docs/rfc/11-payload-message)
+    - [12. Type 3: TELEMETRY](/docs/rfc/12-payload-telemetry)
+  </div>
+  <div>
+    ### Device App UI & UX
+    - [1. Display Mapping](/docs/ui/01-screen-layout)
+    - [2. Managing Contacts](/docs/ui/02-contacts)
+    - [3. Channels & Delivery](/docs/ui/03-channels-routing)
+    - [4. Device Settings](/docs/ui/04-settings)
+  </div>
+</div>

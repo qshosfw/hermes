@@ -1,0 +1,16 @@
+---
+title: Advanced Mesh Simulator
+description: Interactive simulation of the Hermes Protocol SNR-based routing algorithm
+---
+
+# Advanced Mesh Simulator
+
+This immersive playground visually establishes the mathematical algorithms behind the Hermes Protocol's **SNR-based Controlled Flooding**. 
+
+Nodes geometrically calculate pseudo-random Time-to-Live rebroadcast delays weighted heavily by their receiving Signal-To-Noise Ratios (SNR). This explicitly prioritizes and guarantees that nodes with robust antenna backbone conditions transmit earliest, cleanly suppressing weaker outlier nodes and building lightning-fast routing corridors across the physical RF mesh without explicit acknowledgement handshakes.
+
+import AdvancedMeshSimulator from '@/components/visualizer/AdvancedMeshSimulator';
+
+<div className="not-prose mt-8 mb-4">
+    <AdvancedMeshSimulator />
+</div>

@@ -1,0 +1,48 @@
+---
+title: Introduction
+description: Overview and philosophy of the Hermes Link Protocol
+---
+
+# 1. Introduction
+
+**Hermes Link** is an AFSK1200 packet radio protocol primarily targeting limited digital transceivers such as the Quansheng UV-K5, TK11, and other Beken BK4819 radios.
+
+The name _**Hermes Link**_ is inspired by **Hermes**, the Greek god of communication, travel, and boundaries, who served as the divine messenger of the Olympian gods. Known for his speed, cunning, and ability to move freely between worlds.
+
+This specification aims to implement facilitated message authentication, mesh flooding, encryption, channel hopping, and other quality improvements compared to the original UV-K5 messenger.
+
+## 1.1 Scope and Philosophy
+
+We built Hermes to be fast, reliable, and accessible on affordable radio hardware. Existing digital protocols often require external TNCs or expensive proprietary hardware. Hermes runs natively on the BK4819's firmware, turning a $20 analog radio into a secure, digital mesh node.
+
+## 1.2 Core Networking Concepts
+
+To understand the Hermes Protocol, one must understand how it categorizes the actors within the RF space:
+
+- **Node**: Any single radio device operating the Hermes firmware capable of receiving, decoding, and transmitting packets.
+- **Network**: A collection of nodes sharing the exact same base configuration parameters (Keys, Sync Words, Timers). Nodes from different Networks cannot decode each other's packets.
+- **Subnet**: A logical group or partition within a Network. Subnets allow nodes to communicate privately or in specific groups without establishing entirely new Networks.
+
+```mermaid
+graph TD
+    subgraph "Hermes Global Network (Shared Sync Word & Key)"
+        subgraph "Subnet Alpha (Channel A)"
+            A[Node 1] <--> B[Node 2]
+            B <--> C[Node 3]
+        end
+        
+        subgraph "Subnet Beta (Channel B)"
+            D[Node 4] <--> E[Node 5]
+        end
+        
+        C -. "Cross-Subnet Routing" .-> D
+    end
+
+    classDef network fill:#0f172a,stroke:#3b82f6,stroke-width:2px,color:#ffffff
+    classDef subnet fill:#1e1e2e,stroke:#6366f1,stroke-width:1px,color:#ffffff
+    classDef node fill:#111827,stroke:#10b981,stroke-width:2px,color:#ffffff
+    
+    class A,B,C,D,E node
+```
+
+In the subsequent sections of this RFC, we will break down the Hermes Protocol using an OSI-inspired model, starting from the physical RF layer up to the payload applications.
