@@ -22,8 +22,8 @@ Every Telemetry packet utilizes the same 21-byte header foundation:
 ```mermaid
 graph LR
     A["Tag / Name<br>(17 Bytes)"] --- B["Uptime<br>(3 Bytes)"] --- C["Bit Flags<br>(1 Byte)"] -. "Conditional Appends" .-> D["Dynamic Payload Blob<br>(Up to 33 Bytes)"]
-    classDef base fill:"#1e1e2e",stroke:"#89b4fa",stroke-width:2px,color:white;
-    classDef dynamic fill:"#1e1e2e",stroke:"#a855f7",stroke-width:2px,stroke-dasharray: 5 5,color:white;
+    classDef base fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:white;
+    classDef dynamic fill:#1e1e2e,stroke:#a855f7,stroke-width:2px,stroke-dasharray: 5 5,color:white;
     class A,B,C base;
     class D dynamic;
 ```

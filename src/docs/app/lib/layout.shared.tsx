@@ -11,8 +11,14 @@ export function baseOptions(): BaseLayoutProps {
   return {
     nav: {
       title: 'Hermes Link',
+      url: '/',
     },
     links: [
+      {
+        text: 'Documentation',
+        url: '/docs/rfc/01-introduction',
+        active: 'nested-url',
+      },
       {
         text: 'Mesh Simulator',
         url: '/simulator',

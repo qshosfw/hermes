@@ -54,8 +54,8 @@ The baseline hardware FSK Frame structure operates in 3 distinct stages: Preambl
 ```mermaid
 graph LR
     A["Preamble<br>(16 Bytes)"] --- B["Sync Word<br>(4 Bytes)"] --- C["Data Payload<br>(128 Bytes)"] --- D["CRC<br>(Disabled)"]
-    classDef default fill:"#1e1e2e",stroke:"#89b4fa",stroke-width:2px,color:white;
-    class D fill:"#451a03",stroke:"#ef4444",stroke-width:2px,color:white;
+    classDef default fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:white;
+    class D fill:#451a03,stroke:#ef4444,stroke-width:2px,color:white;
 ```
 
 > **Hardware CRC Disabled:** The Protocol Frame does **not** rely on the default hardware CRC checksum. We explicitly set it to disable CRC checks, as they would be useless given our custom Reed-Solomon Forward Error Correction over the data payload. A hardware CRC drop would prematurely reject frames that our data-link layer could easily correct.

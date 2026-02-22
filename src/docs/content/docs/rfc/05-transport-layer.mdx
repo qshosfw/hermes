@@ -18,7 +18,7 @@ These 26 bytes exist precisely inside the 96 available data payload bytes (with 
 ```mermaid
 graph LR
     A["Transport Header<br>(26 Bytes)"] --- B["Encrypted Core Payload<br>(54 Bytes)"] --- C["Poly1305 MAC Hash<br>(16 Bytes)"]
-    classDef default fill:"#1e1e2e",stroke:"#89b4fa",stroke-width:2px,color:white;
+    classDef default fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:white;
 ```
 
 | Field | Size | Details |

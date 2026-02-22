@@ -16,7 +16,7 @@ The ACK payload completely utilizes the 54-byte envelope constraint to securely 
 ```mermaid
 graph LR
     A["ACKed Nonce<br>(12 Bytes)"] --- B["ACKed Signature<br>(16 Bytes)"] --- C["Bitfields<br>(1 Byte)"] --- D["Health Blob<br>(5 Bytes)"] --- E["Location Blob<br>(17 Bytes)"]
-    classDef default fill:"#1e1e2e",stroke:"#89b4fa",stroke-width:2px,color:white;
+    classDef default fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:white;
 ```
 
 | Field | Range (Bytes) | Description |

@@ -69,8 +69,8 @@ graph LR
     A1 -. "3 Byte Chunks" .-> B1
     A2 -. "1 Byte Chunks" .-> B2
     
-    classDef clear fill:"#1e1e2e",stroke:"#89b4fa",stroke-width:2px,color:white
-    classDef parity fill:"#451a03",stroke:"#ef4444",stroke-width:2px,color:white
+    classDef clear fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:white
+    classDef parity fill:#451a03,stroke:#ef4444,stroke-width:2px,color:white
     
     class A1,B1,B3,B5 clear
     class A2,B2,B4,B6 parity
@@ -137,8 +137,8 @@ flowchart TD
     D --> E(Bit-Flipped NRZI Encoding)
     E --> F((Modem Physical Layer<br/>128 Bytes))
 
-    classDef std fill:"#1e1e2e",stroke:"#313244",stroke-width:2px,color:"#cdd6f4";
-    classDef highlight fill:"#89b4fa",stroke:"#1e1e2e",color:"#1e1e2e",font-weight:bold;
+    classDef std fill:#1e1e2e,stroke:#313244,stroke-width:2px,color:white;
+    classDef highlight fill:#89b4fa,stroke:#1e1e2e,color:#1e1e2e,font-weight:bold;
     
     class A,B,C,D,E std;
     class F highlight;

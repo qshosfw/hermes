@@ -16,8 +16,8 @@ Because Discovery packets are meant to be fast and universally readable by any n
 ```mermaid
 graph LR
     A["Node ID<br>(6 Bytes)"] --- B["Hardware Type<br>(1 Byte)"] --- C["Capabilities<br>(2 Bytes)"] --- D["Tx Power<br>(1 Byte)"] --- E["Available Buffer<br>(44 Bytes)"]
-    classDef default fill:"#1e1e2e",stroke:"#89b4fa",stroke-width:2px,color:white;
-    class E fill:"#4c1d95",stroke:"#a855f7",stroke-dasharray: 5 5,color:white;
+    classDef default fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:white;
+    class E fill:#4c1d95,stroke:#a855f7",stroke-dasharray: 5 5,color:white;
 ```
 
 ### 13.1.1 Discovery Base Blob (10 Bytes)
@@ -43,7 +43,7 @@ flowchart TD
     C --> E[Transmit on Discovery Subnet]
     D --> E
     
-    classDef block fill:"#1e1e2e",stroke:"#6366f1",stroke-width:2px,color:white
+    classDef block fill:#1e1e2e,stroke:#6366f1,stroke-width:2px,color:white
     class A,B,C,D,E block
 ```
 
