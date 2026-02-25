@@ -42,23 +42,21 @@ void BK4819_FskInit(void) {
 
 ## <Settings2 className="inline w-5 h-5 mr-2 text-emerald-400" /> 3.2 FSK Frame Components
 
-The baseline hardware FSK Frame structure operates in 3 distinct stages: Preamble, Sync Word, and Data Payload.
+The baseline hardware FSK Frame structure operates in 3 distinct stages: Preamble, Sync Word, and Data Payload. To maximize Forward Error Correction efficiency, the Data Payload is transmitted as a single, contiguous 128-byte block.
 
 | Field | Description |
 |--------:|---------------:|
-| **1~16 bytes**   | Preamble  |
-| **2 or 4 bytes** | Sync Word |
-| **128 bytes** | Encoded Data Frame  |
-| **2 bytes** | CRC (Hardware Layer Checksum) |
+| **16 bytes**   | Preamble (0xAA or 0x55) |
+| **4 bytes** | Sync Word (0x2F2A11DB) |
+| **128 bytes** | Contiguous RS(128, 96) Codeword |
 
 ```mermaid
 graph LR
-    A["Preamble<br>(16 Bytes)"] --- B["Sync Word<br>(4 Bytes)"] --- C["Data Payload<br>(128 Bytes)"] --- D["CRC<br>(Disabled)"]
+    A["Preamble<br>(16 Bytes)"] --- B["Sync Word<br>(4 Bytes)"] --- C["Standard RS block<br>(128 Bytes)"]
     classDef default fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:white;
-    class D fill:#451a03,stroke:#ef4444,stroke-width:2px,color:white;
 ```
 
-> **Hardware CRC Disabled:** The Protocol Frame does **not** rely on the default hardware CRC checksum. We explicitly set it to disable CRC checks, as they would be useless given our custom Reed-Solomon Forward Error Correction over the data payload. A hardware CRC drop would prematurely reject frames that our data-link layer could easily correct.
+> **Performance Note:** We explicitly avoid hardware-level CRC and intra-codeword interleaving. The single RS(128, 96) block is mathematically optimal for correcting both localized bursts and scattered noise, provided it is coupled with physical-layer aware decoding.
 
 ## <Sigma className="inline w-5 h-5 mr-2 text-rose-400" /> 3.3 Sync Word & Preamble Configuration
 
@@ -78,42 +76,18 @@ The default 4-byte Sync Word is a precisely calculated sequence: **`0x2F 0x2A 0x
 
 It acts as a high-entropy identifier with mathematically optimized auto-correlation properties derived to minimize the chances of false-positives against ambient RF noise.
 
-```c
-// BK4819 TX/RX Messaging Control (Kamilsss Firmware Implementation)
+## 3.4 Link Quality Telemetry (Soft Decisions)
 
-void BK4819_PrepareFSKReceive(void) {
-    BK4819_WriteRegister(BK4819_REG_3F, 0);
-    BK4819_RX_TurnOn();
-    
-    // Expect FIFO Almost Full and RX Finished interrupts
-    BK4819_WriteRegister(BK4819_REG_3F, BK4819_REG_3F_FSK_RX_FINISHED | BK4819_REG_3F_FSK_FIFO_ALMOST_FULL);
+To enable advanced **Erasure Decoding**, the receiver must generate soft-decision metrics during the reception of the 128-byte payload. The firmware polls the BK4819 internal diagnostic registers via SPI for every byte received during the RX interrupt.
 
-    // Write Sync Word (0x2F, 0x2A, 0x11, 0xDB)
-    BK4819_WriteRegister(BK4819_REG_5A, 0x2F2A); 
-    BK4819_WriteRegister(BK4819_REG_5B, 0x11DB);
+- **RSSI (Reg 67)**: Monitoring signal strength for deep RF fades.
+- **Glitch (Reg 63)**: High-speed indicator of clock desynchronization and bit-errors.
+- **Ex-Noise (Reg 65)**: Detects non-FSK energy and interference spikes.
+- **Erasure Mapping**: If the RSSI drops below threshold, Glitch count spikes, or Ex-Noise indicates heavy interference during a specific window, the corresponding bytes in the 128-byte array are flagged as mathematical **erasures**.
 
-    // Setup FSK RX Preamble/Sync parameters
-    BK4819_WriteRegister(BK4819_REG_59, 0x3068);
-}
+By supplying these hardware-derived flags to the L2 decoder, the protocol's burst correction limit is doubled from 16 to **32 bytes**.
 
-void BK4819_SendFSKData(uint16_t *pData) {
-    BK4819_WriteRegister(BK4819_REG_3F, BK4819_REG_3F_FSK_TX_FINISHED);
-    
-    // Reset and initialize TX FIFO
-    BK4819_WriteRegister(BK4819_REG_59, 0x8068);
-    BK4819_WriteRegister(BK4819_REG_59, 0x0068);
-
-    // Load data payload (36 words / 72 bytes)
-    for (uint16_t i = 0; i < 36; i++) {
-        BK4819_WriteRegister(BK4819_REG_5F, pData[i]);
-    }
-
-    // Enable TX and shift FSK out
-    BK4819_WriteRegister(BK4819_REG_59, 0x2868);
-}
-```
-
-## 3.4 Interactive Visualizer: Frame Structure
+## 3.5 Interactive Visualizer: Frame Structure
 
 The entire FSK1200 frame layout, from Preamble to Signature and Parity bytes, is physically illustrated below in relative size mappings.
 

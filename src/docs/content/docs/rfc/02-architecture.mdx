@@ -105,10 +105,10 @@ graph TD
 ### 2.3.1 Direct (Unicast) Subnets
 In Unicast communication, **two nodes** operate on their own logical "subnet" in a half-duplex manner. Both the Sender and Destination addresses correspond directly to the respective Transmission and Receiving Node Unique Addresses.
 
-Direct communication paths derive key material using ratcheting configurations or static deviations from the Master Key customized for specific node pairs.
+Direct communication paths utilize **Secret Compartmentalization** (Section 6.5) to derive session keys ($K_{scope}$) from the Master Key, the Unicast label, participant addresses, and an optional Scope Secret.
 
 ### 2.3.2 Groups (Multicast) Subnets
-Groups may use any Address for identification, so long as it is stored on all participating members as a registered Multicast Destination. Groups derive static shared secrets cryptographically from the Master Network Key and the Subnet Destination Address.
+Groups may use any Address for identification, so long as it is stored on all participating members as a registered Multicast Destination. Group keys utilize **Secret Compartmentalization** (Section 6.5), deriving shared secrets from the Master Network Key and a group-specific Scope Secret.
 
 Keys function similarly to direct keys, but act as a static shared secret spanning multiple participant nodes rather than a rotating 1-to-1 session.
 

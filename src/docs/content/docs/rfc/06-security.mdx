@@ -5,11 +5,11 @@ description: ChaCha20, Poly1305 AEAD, Master Keys, and Sealed Sender rules
 
 import InteractiveEntropyGraphMDX from '@/components/visualizer/InteractiveEntropyGraphMDX';
 import AvalancheVisualizerMDX from '@/components/visualizer/AvalancheVisualizerMDX';
-import { Lock, FileKey2, Network, EyeOff } from 'lucide-react';
+import { Lock, FileKey2, Network, EyeOff, ShieldCheck } from 'lucide-react';
 
 # <Lock className="inline w-6 h-6 mr-2 text-blue-400" /> 6. Cryptographic Security
 
-Hermes Link assures confidentiality and integrity across the mesh network using modern cryptographic standards optimized strictly for constrained embedded devices. These rules run closely aligned with the Transport Layer mechanics.
+Hermes Link provides confidentiality and integrity across the mesh network using cryptographic standards optimized for constrained embedded devices. These rules align with the Transport Layer mechanics.
 
 ## <FileKey2 className="inline w-5 h-5 mr-2 text-indigo-400" /> 6.1 ChaCha20-Poly1305 AEAD
 
@@ -50,7 +50,7 @@ void Hermes_EncryptPayload(
 
 <AvalancheVisualizerMDX />
 
-Packet signatures prevent active tampering from "man in the middle" bad actors, completely stopping attempts at manipulating headers (such as `TTL` extensions or `Destination` substitutions) and asserting strict authenticity.
+Packet signatures prevent active tampering from "man in the middle" actors, preventing unauthorized manipulation of headers (such as `TTL` extensions or `Destination` substitutions) and asserting authenticity.
 
 The protocol consumes the final 16 bytes of the total 96-byte layer window for the **Poly1305 Signature Hash**.
 
@@ -78,7 +78,7 @@ By default, an eavesdropper looking at the Network Layer headers can openly obse
 
 When Sealed Sender behavior activates, the final 6 bytes of the Header array are physically relocated into the ChaCha20 cipher cycle along with the `Payload`.
 
-While the passive eavesdropper can intercept the packet and realize some address (`Destination`) is the intended recipient of a mesh broadcast, it is mathematically impossible to glean which node physically originated the packet inside the network structure.
+While an observer can intercept the packet and identify the destination, they cannot determine which node originated the packet without the appropriate keys.
 
 ```mermaid
 graph TD
@@ -98,3 +98,116 @@ graph TD
     class A,B,C,E,F clear
     class D secret
 ```
+
+## <ShieldCheck className="inline w-5 h-5 mr-2 text-orange-400" /> 6.5 Secret Compartmentalization
+
+To provide cryptographic isolation within a shared mesh network, Hermes utilizes **Secret Compartmentalization** for Unicast and Multicast traffic (but specifically excludes Discovery and Broadcast). This ensures that even if an attacker possesses the Base Network Key ($K_{mesh}$), they cannot decrypt private traffic without the specific **Scope Secret**.
+
+This mechanism provides cryptographic separation between different communication scopes. The traffic key depends on data unknown to other mesh participants.
+
+### Key Derivation ($K_{scope}$)
+
+The session-specific traffic key ($K_{scope}$) is derived using **ChaCha20** as a Pseudo-Random Function (PRF). By using the network key as the PRF entropy source and the secret/context as the message, we derive a unique key for the specific scope.
+
+```mermaid
+graph TD
+    KM["Base Network Key (K_mesh)"]
+    SS["Scope Secret (ASCII String)"]
+    SC["Scope Context (Metadata)"]
+    
+    KM --- PRF{{"ChaCha20 PRF"}}
+    SS --- PRF
+    SC --- PRF
+    
+    PRF --> KS["Traffic Key (K_scope)"]
+    
+    style KM fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:white
+    style SS fill:#1e1e2e,stroke:#f97316,stroke-width:2px,color:white
+    style SC fill:#1e1e2e,stroke:#10b981,stroke-width:2px,color:white
+    style PRF fill:#4c1d95,stroke:#a855f7,stroke-width:2px,color:white
+    style KS fill:#111827,stroke:#6366f1,stroke-width:2px,color:white
+```
+
+#### Scope Context Specification
+
+The `scope_context` ensures domain separation between different communication types and specific node pairings.
+
+| Field | Size | Details |
+|---:|---:|---|
+| **Scope Secret** | variable | User-defined ASCII string (e.g. "my-secret-group") |
+| **Scope Label** | 1 Byte | `U` (0x55) for Unicast, `M` (0x4D) for Multicast |
+| **Sender** | 6 Bytes | 6-char source address hash |
+| **Destination** | 6 Bytes | 6-char destination address hash |
+
+#### PRX Pseudocode (ChaCha20)
+
+```c
+/**
+ * Derives a 32-byte K_scope from the mesh key and context.
+ * We use the first 32 bytes of the ChaCha20 keystream generated 
+ * from the K_mesh (key) and context (nonce/message).
+ */
+void Hermes_DeriveScopeKey(
+    const uint8_t* k_mesh,        // 32-byte network key
+    const char* scope_secret,     // "scope_secret"
+    uint8_t scope_label,          // 'U' or 'M'
+    const uint8_t* sender,        // 6-byte source
+    const uint8_t* destination,   // 6-byte dest
+    uint8_t* out_k_scope          // Resulting 32-byte key
+) {
+    uint8_t input_block[64] = {0};
+    
+    // 1. Construct the context message
+    // Format: [Label][Sender][Dest][Secret...]
+    input_block[0] = scope_label;
+    memcpy(input_block + 1, sender, 6);
+    memcpy(input_block + 7, destination, 6);
+    strncpy((char*)input_block + 13, scope_secret, 50); // Up to 50 chars
+
+    // 2. PRF: Generate keystream block 0 using K_mesh
+    // Nonce is fixed to zero for the PRF phase
+    uint8_t zero_nonce[12] = {0};
+    uint8_t zero_plaintext[32] = {0};
+    
+    chachapoly_ctx ctx;
+    chachapoly_init(&ctx, k_mesh, zero_nonce);
+    
+    // We "encrypt" the input_block (or just use it to shift the state)
+    // To keep it simple: we use the input_block as the AAD to influence the state
+    chachapoly_update_aad(&ctx, input_block, 64);
+    
+    // Use the resulting keystream to generate the new key
+    chachapoly_crypt(&ctx, zero_plaintext, 32); 
+    memcpy(out_k_scope, zero_plaintext, 32);
+}
+```
+
+
+### The "Sealed Sender" Paradox
+
+A "paradox" occurs when Secret Compartmentalization is used in conjunction with **Sealed Sender** (Section 6.4). 
+
+1.  **Dependency**: To derive $K_{scope}$, you need the `Sender Address`.
+2.  **Sealing**: The `Sender Address` is encrypted (sealed) *using* $K_{scope}$.
+3.  **Result**: You cannot identify the sender without the key, and you cannot get the key without the sender ID.
+
+#### Resolution: Contact Iteration
+
+To resolve this circular dependency, a receiving node performs the following check for incoming sealed unicast/multicast packets:
+
+```c
+for (contact in known_contacts) {
+    // 1. Assume this contact is the sender
+    K_trial = PRF(K_mesh, contact.secret, 'U', contact.addr, my_addr);
+    
+    // 2. Attempt decryption and MAC verification
+    if (AEAD_Verify(K_trial, packet)) {
+        // Success! Sender identified as 'contact'
+        return contact;
+    }
+}
+// If all fail, packet is invalid or from an unknown secret scope
+```
+
+This logic enforces sender anonymity within the network. An observer may see a packet's destination but cannot identify the sender without access to the secrets of the network participants.
+

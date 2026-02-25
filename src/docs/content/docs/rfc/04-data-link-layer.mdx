@@ -3,8 +3,9 @@ title: Data Link Layer
 description: Reed-Solomon FEC, Interleaving, Whitening, and NRZI encoding
 ---
 
-import InterleavingVisualizerMDX from '@/components/visualizer/InterleavingVisualizerMDX';
+import FecBurstVisualizerMDX from '@/components/visualizer/FecBurstVisualizerMDX';
 import WhiteningVisualizerMDX from '@/components/visualizer/WhiteningVisualizerMDX';
+import NrziVisualizerMDX from '@/components/visualizer/NrziVisualizerMDX';
 import { Layers, ShieldCheck, Shuffle, Webhook, Zap, Route } from 'lucide-react';
 
 # <Layers className="inline w-6 h-6 mr-2 text-blue-400" /> 4. Data Link Layer (L2)
@@ -45,43 +46,40 @@ void Hermes_EncodeRS(uint8_t* tx_buffer) {
 }
 ```
 
-## <Shuffle className="inline w-5 h-5 mr-2 text-emerald-400" /> 4.2 Interleaving 
+## <ShieldCheck className="inline w-5 h-5 mr-2 text-indigo-400" /> 4.2 Erasure Decoding & Burst Resilience
 
-<InterleavingVisualizerMDX />
+Instead of using naive hard-decision decoding, Hermes leverages **Erasure Decoding** to handle deep RF fades.
 
-To mitigate burst errors (where a sudden blast of static wipes out an entire contiguous row of bytes), the protocol applies **3:1 Interleaving** to the RS(128,96) data blocks.
+In standard decoding, the algorithm must find both the **location** and the **value** of errors. By utilizing physical-layer telemetry (RSSI/Glitch/Noise monitoring from Section 3.4), we can pre-identify unreliable bytes as **erasures**.
 
-Instead of writing all 96 data bytes, followed linearly by the 32 parity bytes, the stream is mixed:
-- We insert **1 parity byte** after each **3-byte data block**.
+The Reed-Solomon correction capability is defined by:
+$$2e + v \le n - k$$
+Where:
+- $e$: Number of unknown errors
+- $v$: Number of known erasures
+- $n - k$: Number of parity symbols (32)
 
-This interleaving scatters the parity checksums across the physical transmission timeline, protecting the structural integrity from concentrated RF bursts.
+By providing erasures, we can correct up to **32 bytes** of contiguous burst loss (25% of the frame), effectively doubling the resilience compared to hard-decision decoding (16 bytes).
 
-```mermaid
-graph LR
-    subgraph "Standard Contiguous Output"
-        A1["Data (D)<br>96 Bytes"] --- A2["Parity (P)<br>32 Bytes"]
-    end
-    
-    subgraph "3:1 Interleaved Output"
-        B1["D D D"] --- B2["P"] --- B3["D D D"] --- B4["P"] --- B5["D D D"] --- B6["P"] --- B7["..."]
-    end
-    
-    A1 -. "3 Byte Chunks" .-> B1
-    A2 -. "1 Byte Chunks" .-> B2
-    
-    classDef clear fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:white
-    classDef parity fill:#451a03,stroke:#ef4444,stroke-width:2px,color:white
-    
-    class A1,B1,B3,B5 clear
-    class A2,B2,B4,B6 parity
-```
+<FecBurstVisualizerMDX />
+
+### 4.2.1 Why No Interleaving?
+Mathematically, intra-codeword interleaving (e.g., 3:1) provides zero benefit against burst errors when using a single large MDS block like RS(128, 96). It only complicates the implementation without raising the absolute correction ceiling.
+
+## 4.3 Bit-Slip Mitigation (Heuristic Recovery)
+Physical layer fading often causes **bit-slips**, where the receiver clock loses sync and shifts the entire byte boundary by $\pm 1$ or more bits.
+
+If the initial syndrome evaluation fails, Hermes employs a **Shift-and-Redecode** loop:
+1. Identify the deepest fade index from telemetry.
+2. Hypothetically shift the bitstream by $\pm 1$ and $\pm 2$ bit positions around that window.
+3. Re-calculate the 32 syndromes. If they resolve to zero, the alignment is correct, and the packet is rescued.
 
 
-## <Webhook className="inline w-5 h-5 mr-2 text-rose-400" /> 4.3 Whitening (Scrambling)
+## <Webhook className="inline w-5 h-5 mr-2 text-rose-400" /> 4.4 Whitening (Scrambling)
 
 <WhiteningVisualizerMDX />
 
-FSK1200 decoders struggle if they see heavy repetitions of static sequences (DC biasing). To maintain balanced RF energy and zero-DC average across the packet, we whiten (scramble) the interleaved 128 bytes.
+FSK1200 decoders struggle if they see heavy repetitions of static sequences (DC biasing). To maintain balanced RF energy and zero-DC average across the packet, we whiten (scramble) the contiguous 128 bytes.
 
 The payload is Whitened through an XOR operation (`⊕`) across two properties:
 1. **The 4-Byte Sync Word**
@@ -114,14 +112,16 @@ void Hermes_Whiten(uint8_t* buffer, uint32_t sync_word) {
 }
 ```
 
-## <Zap className="inline w-5 h-5 mr-2 text-amber-400" /> 4.4 NRZI Encoding
+## <Zap className="inline w-5 h-5 mr-2 text-amber-400" /> 4.5 NRZI Encoding
 
 Even after whitening, long runs of zeroes or ones can inadvertently cause the receiver clock to desync. The final phase before sending the byte stream down to the modem is encoding it utilizing **bit-flipped NRZI** (Non-Return-to-Zero Inverted).
 
 - A `0` bit triggers a **Transition** (voltage swing).
 - A `1` bit triggers **No Transition**.
 
-Because the whitening pass guarantees the data heavily swings between `0` and `1`, NRZI ensures frequent enough transitions to maintain receiver clock synchronization.
+NRZI ensures frequent enough transitions to maintain receiver clock synchronization, even during relatively flat data periods.
+
+<NrziVisualizerMDX />
 
 ---
 
@@ -132,14 +132,13 @@ When generating a packet, the pipeline follows a strict downward flow:
 ```mermaid
 flowchart TD
     A[Raw Header + Payload Data<br/>96 Bytes] --> B(Reed-Solomon 128,96 Encoding<br/>+ 32 Bytes Parity)
-    B --> C(3:1 Interleaving Scattering)
-    C --> D("Whitening<br/>(⊕ Sync Word ⊕ PN15 LFSR)")
-    D --> E(Bit-Flipped NRZI Encoding)
-    E --> F((Modem Physical Layer<br/>128 Bytes))
+    B --> C("Whitening<br/>(⊕ Sync Word ⊕ PN15 LFSR)")
+    C --> D(Bit-Flipped NRZI Encoding)
+    D --> E((Modem Physical Layer<br/>128 Bytes))
 
     classDef std fill:#1e1e2e,stroke:#313244,stroke-width:2px,color:white;
     classDef highlight fill:#89b4fa,stroke:#1e1e2e,color:#1e1e2e,font-weight:bold;
     
-    class A,B,C,D,E std;
-    class F highlight;
+    class A,B,C,D std;
+    class E highlight;
 ```
