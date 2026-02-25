@@ -5,11 +5,11 @@ description: Text, custom string, and GSM-7 data representation
 
 # 11. Type 2: Message 
 
-The **Type 2** Packet serves as the generic string, text, file block, and custom byte wrapper protocol structure. By completely discarding physical routing rules or telemetric constraints, it maximizes the entire 54-Byte payload window to transport standard character bits.
+The **Type 2** Packet serves as the generic string, text, file block, and custom byte wrapper protocol structure. By completely discarding physical routing rules or telemetric constraints, it maximizes the entire 56-Byte payload window to transport standard character bits.
 
-If the Transport Header fragment indicators expand out to fully utilize all `16` array indexes (`0-15` `Fragment Index`), the message structure expands to a whopping **864 Bytes** representing standard concatenated characters over the mesh.
+If the Transport Header fragment indicators expand out to fully utilize all `16` array indexes (`0-15` `Fragment Index`), the message structure expands to a whopping **896 Bytes** (or **1024 GSM-7 Characters**) representing standard concatenated characters over the mesh.
 
-The payload explicitly has no formal requirement dictating exactly how these 54 bytes are cast, however standard ASCII text blocks represent the predominant use case.
+The payload explicitly has no formal requirement dictating exactly how these 56 bytes are cast, however standard ASCII or GSM-7 text blocks represent the predominant use case.
 
 ## 11.1 Standard GSM-7 Encoding
 

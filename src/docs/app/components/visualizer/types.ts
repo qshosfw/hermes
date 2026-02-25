@@ -18,15 +18,16 @@ export enum AddressingType {
 }
 
 export interface PacketHeaderConfig {
-  type: number; // 0-31 (5 bits)
+  type: number; // 0-15 (4 bits)
   addressing: AddressingType; // 2 bits
-  ttl: number; // 0-7 (3 bits)
-  wantAck: boolean;
+  ttl: number; // 0-15 (4 bits)
+  wantAck: boolean; // 1 bit
   fragmentIndex: number; // 0-15 (4 bits)
-  lastFragment: boolean;
-  nonce: Uint8Array; // 12 bytes
+  lastFragment: boolean; // 1 bit
+  packetId: Uint8Array; // 6 bytes
   destination: Uint8Array; // 6 bytes
   source: Uint8Array; // 6 bytes
+  hopNonce: Uint8Array; // 4 bytes
 }
 
 export interface Highlight {
@@ -44,8 +45,8 @@ export enum AckStatus {
 }
 
 export interface AckedPacketInfo {
-  nonce: Uint8Array; // 12 bytes
-  signature: Uint8Array; // 16 bytes
+  packetId: Uint8Array; // 6 bytes
+  innerMac: Uint8Array; // 8 bytes
   fragmentIndex: number; // 4 bits
   lastFragment: boolean; // 1 bit
   status: AckStatus; // 2 bits

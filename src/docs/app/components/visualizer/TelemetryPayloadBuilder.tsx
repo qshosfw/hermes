@@ -90,7 +90,7 @@ const TelemetryPayloadBuilder: React.FC<TelemetryPayloadBuilderProps> = ({ telem
     const totalUsedSpace = useMemo(() => {
         let used = 21; // Base size: tag(17) + uptime(3) + flags(1)
         if (telemetryInfo.flags.isCustomData) {
-            return 54;
+            return 56;
         }
         flagConfig.forEach(flag => {
             if (telemetryInfo.flags[flag.name as keyof typeof telemetryInfo.flags]) {
@@ -104,7 +104,7 @@ const TelemetryPayloadBuilder: React.FC<TelemetryPayloadBuilderProps> = ({ telem
         // Prevent enabling if space exceeded
         if (isChecked && flagName !== 'isCustomData') {
             const flagSize = flagConfig.find(f => f.name === flagName)?.size || 0;
-            if (totalUsedSpace + flagSize > 54) return;
+            if (totalUsedSpace + flagSize > 56) return;
         }
 
         setTelemetryInfo((prev: TelemetryPacketInfo | null) => {
@@ -125,7 +125,7 @@ const TelemetryPayloadBuilder: React.FC<TelemetryPayloadBuilderProps> = ({ telem
         });
     };
 
-    const remainingBytes = 54 - totalUsedSpace;
+    const remainingBytes = 56 - totalUsedSpace;
 
     return (
         <div className="space-y-6">
@@ -151,14 +151,14 @@ const TelemetryPayloadBuilder: React.FC<TelemetryPayloadBuilderProps> = ({ telem
                 <div className="flex justify-between items-baseline mb-3 pb-2 border-b border-neutral-800">
                     <h4 className="text-sm font-semibold text-slate-300">Payload Configuration</h4>
                     <div className={`font-mono text-xs px-2 py-0.5 rounded ${remainingBytes < 0 ? 'bg-red-900 text-red-200' : 'bg-neutral-800 text-slate-400'}`}>
-                        {totalUsedSpace} / 54 Bytes Used
+                        {totalUsedSpace} / 56 Bytes Used
                     </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 mb-2">
                     {flagConfig.map(flag => {
                         const isChecked = telemetryInfo.flags[flag.name as keyof typeof telemetryInfo.flags];
-                        const willExceed = !isChecked && (totalUsedSpace + flag.size > 54);
+                        const willExceed = !isChecked && (totalUsedSpace + flag.size > 56);
                         const isDisabled = telemetryInfo.flags.isCustomData || willExceed;
 
                         return (
@@ -263,10 +263,10 @@ const TelemetryPayloadBuilder: React.FC<TelemetryPayloadBuilderProps> = ({ telem
                             value={telemetryInfo.customData}
                             onChange={(e) => handleInfoChange('customData', e.target.value)}
                             rows={2}
-                            maxLength={54 - 21}
+                            maxLength={56 - 21}
                             className="mt-1 block w-full bg-slate-800 border-slate-700 rounded-md shadow-sm p-2 text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition font-mono text-sm"
                         ></textarea>
-                        <p className="text-[10px] text-right text-slate-500 mt-1">{new TextEncoder().encode(telemetryInfo.customData).length} / {54 - 21} bytes</p>
+                        <p className="text-[10px] text-right text-slate-500 mt-1">{new TextEncoder().encode(telemetryInfo.customData).length} / {56 - 21} bytes</p>
                     </div>
                 )}
             </div>

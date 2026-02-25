@@ -267,11 +267,11 @@ const TelemetryPayloadVisualizer: React.FC<TelemetryPayloadVisualizerProps> = ({
     const sections: React.ReactNode[] = [];
 
     if (flags.isCustomData) {
-        const customDataLen = 54 - 21;
+        const customDataLen = 56 - 21;
         sections.push(
             <Section key="custom" label="Custom Data" byteCount={customDataLen}>
                 <div className="grid grid-cols-8 md:grid-cols-16 gap-2">
-                    {Array.from(payload.slice(21, 54)).map((byte, i) => <ByteCell key={i} value={byte} color="bg-purple-600" />)}
+                    {Array.from(payload.slice(21, 56)).map((byte, i) => <ByteCell key={i} value={byte} color="bg-purple-600" />)}
                 </div>
             </Section>
         );
@@ -293,7 +293,7 @@ const TelemetryPayloadVisualizer: React.FC<TelemetryPayloadVisualizerProps> = ({
             );
             offset += 4;
         }
-        if (flags.hasLocation && offset + 17 <= 54) {
+        if (flags.hasLocation && offset + 17 <= 56) {
             sections.push(
                 <Section key="location" label="Location" byteCount={17}>
                     <LocationBitsVisualizer loc={telemetryInfo.location} />
@@ -301,7 +301,7 @@ const TelemetryPayloadVisualizer: React.FC<TelemetryPayloadVisualizerProps> = ({
             );
             offset += 17;
         }
-        if (flags.hasHygrometer && offset + 4 <= 54) {
+        if (flags.hasHygrometer && offset + 4 <= 56) {
             const hBits = telemetryInfo.humidity.toString(2).padStart(16, '0');
             const tVal = new Uint16Array(new Int16Array([telemetryInfo.temperature]).buffer)[0];
             const tBits = tVal.toString(2).padStart(16, '0');
@@ -315,7 +315,7 @@ const TelemetryPayloadVisualizer: React.FC<TelemetryPayloadVisualizerProps> = ({
             );
             offset += 4;
         }
-        if (flags.hasGasSensor && offset + 4 <= 54) {
+        if (flags.hasGasSensor && offset + 4 <= 56) {
             const gBits = telemetryInfo.gasPpm.toString(2).padStart(16, '0');
             const pBits = telemetryInfo.pressureHpa.toString(2).padStart(16, '0');
             sections.push(
@@ -328,21 +328,21 @@ const TelemetryPayloadVisualizer: React.FC<TelemetryPayloadVisualizerProps> = ({
             );
             offset += 4;
         }
-        if (flags.hasLuxSensor && offset + 2 <= 54) {
+        if (flags.hasLuxSensor && offset + 2 <= 56) {
             const lBits = telemetryInfo.lux.toString(2).padStart(16, '0');
             sections.push(<Section key="lux" label="Light Sensor" byteCount={2}>
                 <ValueBlock label="Intensity" value={`${telemetryInfo.lux} Lux`} bits={lBits} color="bg-amber-500" byteSize={2} />
             </Section>);
             offset += 2;
         }
-        if (flags.hasUvSensor && offset + 2 <= 54) {
+        if (flags.hasUvSensor && offset + 2 <= 56) {
             const uBits = telemetryInfo.uvIndex.toString(2).padStart(16, '0');
             sections.push(<Section key="uv" label="UV Sensor" byteCount={2}>
                 <ValueBlock label="UV Index" value={`${(telemetryInfo.uvIndex / 100).toFixed(2)}`} bits={uBits} color="bg-orange-500" byteSize={2} />
             </Section>);
             offset += 2;
         }
-        if (flags.hasMovementSensor && offset + 2 <= 54) {
+        if (flags.hasMovementSensor && offset + 2 <= 56) {
             const mBits = telemetryInfo.movement.toString(2).padStart(16, '0');
             sections.push(<Section key="movement" label="Movement Sensor" byteCount={2}>
                 <ValueBlock label="Magnitude" value={telemetryInfo.movement} bits={mBits} color="bg-red-500" byteSize={2} />
@@ -351,7 +351,7 @@ const TelemetryPayloadVisualizer: React.FC<TelemetryPayloadVisualizerProps> = ({
         }
     }
 
-    const remainingBytes = 54 - offset;
+    const remainingBytes = 56 - offset;
 
     return (
         <div className="bg-black/20 p-1 rounded-lg space-y-4">

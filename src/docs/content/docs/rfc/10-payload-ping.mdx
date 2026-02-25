@@ -11,7 +11,7 @@ Unlike typical IP networks that leverage ICMP Ping natively just as an echo, a H
 
 ## 10.1 The Hop Array 
 
-The 54-byte payload operates efficiently as a contiguous array block. The payload carries up to **9 Sequential Hops** tracing the routing line.
+The 56-byte payload operates efficiently as a contiguous array block. The payload carries up to **9 Sequential Hops** tracing the routing line, with the final 2 bytes reserved.
 
 ```mermaid
 graph LR
@@ -36,6 +36,7 @@ It locates the first empty `0x00...` array slot inside the payload and automatic
 | **Hop 7** | `36 - 41` | 7th Repeater Node Address |
 | **Hop 8** | `42 - 47` | 8th Repeater Node Address |
 | **Hop 9** | `48 - 53` | 9th Repeater Node Address |
+| **Reserved**| `54 - 55` | 2 Bytes reserved for future Transit/SNR metrics |
 
 ## 10.2 Ping ACKs
 

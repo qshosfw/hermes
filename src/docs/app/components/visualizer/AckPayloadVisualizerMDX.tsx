@@ -7,8 +7,8 @@ import * as Hermes from './hermesProtocol';
 export default function AckPayloadVisualizerMDX() {
     // Mock ACK Info
     const ackedInfo = {
-        nonce: Hermes.generateRandomBytes(12),
-        signature: Hermes.generateRandomBytes(16),
+        packetId: Hermes.hexToBytes("AABBCCDDEEFF", 6),
+        innerMac: Hermes.hexToBytes("1122334455667788", 8),
         fragmentIndex: 0,
         lastFragment: true,
         status: AckStatus.ACK_OK,

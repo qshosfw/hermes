@@ -11,11 +11,11 @@ Discovery packets are explicitly the only packet type that is legally permitted 
 
 ## 13.1 Packet Structure
 
-Because Discovery packets are meant to be fast and universally readable by any node running the Hermes firmware within physical RF range, they utilize the generic 54-byte envelope aggressively to pack identifying properties rather than payload text.
+Because Discovery packets are meant to be fast and universally readable by any node running the Hermes firmware within physical RF range, they utilize the generic 56-byte envelope aggressively to pack identifying properties rather than payload text.
 
 ```mermaid
 graph LR
-    A["Node ID<br>(6 Bytes)"] --- B["Hardware Type<br>(1 Byte)"] --- C["Capabilities<br>(2 Bytes)"] --- D["Tx Power<br>(1 Byte)"] --- E["Available Buffer<br>(44 Bytes)"]
+    A["Node ID<br>(6 Bytes)"] --- B["Hardware Type<br>(1 Byte)"] --- C["Capabilities<br>(2 Bytes)"] --- D["Tx Power<br>(1 Byte)"] --- E["Available Buffer<br>(46 Bytes)"]
     classDef default fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:white;
     class E fill:#4c1d95,stroke:#a855f7",stroke-dasharray: 5 5,color:white;
 ```
@@ -31,9 +31,9 @@ The first 10 bytes immediately following the standard 26-byte header must contai
 | `7-8` | **2 Bytes** | **Capability Bitmask** | A 16-bit flag array specifying support for advanced modules (e.g., GPS presence, Bluetooth Gateway, Battery Management, File Transfer). |
 | `9` | **1 Byte** | **Base Tx Power** | The decibel (dBm) logarithmic value of the transmission, allowing receivers to aggressively calculate approximate physical distance utilizing path-loss modeling alongside their perceived RSSI lock. |
 
-### 13.1.2 The Available Buffer (44 Bytes)
+### 13.1.2 The Available Buffer (46 Bytes)
 
-The remaining 44 bytes are strictly formatted up to the preference of the network administrator.
+The remaining 46 bytes are strictly formatted up to the preference of the network administrator.
 
 ```mermaid
 flowchart TD

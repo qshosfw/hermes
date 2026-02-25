@@ -95,7 +95,7 @@ const ControlBits: React.FC<{ ackedInfo: AckedPacketInfo }> = ({ ackedInfo }) =>
         <div className="space-y-4">
             <div className="flex flex-col space-y-2">
                 <div className="flex justify-between text-xs font-mono text-neutral-500 px-1">
-                    <span>Byte 28</span>
+                    <span>Byte 14</span>
                     <span>0x{byteValue.toString(16).padStart(2, '0').toUpperCase()}</span>
                 </div>
                 <div className="bg-black/40 p-3 rounded-lg border border-neutral-800">
@@ -131,13 +131,13 @@ const HealthBlobVisualizer: React.FC<{ ackedInfo: AckedPacketInfo }> = ({ ackedI
     const ackingRssiVal = toRssiVal(ackedInfo.ackingRssi);
     const idleRssiVal = toIdleRssiVal(ackedInfo.idleRssi);
 
-    const byte29 = (ackedInfo.hasBattery ? 0x80 : 0) | (ackedInfo.batteryVoltage & 0x7F);
-    const byte30 = (ackedRssiVal << 1) | ((ackingRssiVal >> 6) & 0x01);
-    const byte31 = ((ackingRssiVal & 0x3F) << 2) | ((idleRssiVal >> 4) & 0x03);
-    const byte32 = ((idleRssiVal & 0x0F) << 4) | ((ackedInfo.prevLqi >> 4) & 0x0F);
-    const byte33 = ((ackedInfo.prevLqi & 0x0F) << 4) | (ackedInfo.txPowerLevel & 0x0F);
+    const byte15 = (ackedInfo.hasBattery ? 0x80 : 0) | (ackedInfo.batteryVoltage & 0x7F);
+    const byte16 = (ackedRssiVal << 1) | ((ackingRssiVal >> 6) & 0x01);
+    const byte17 = ((ackingRssiVal & 0x3F) << 2) | ((idleRssiVal >> 4) & 0x03);
+    const byte18 = ((idleRssiVal & 0x0F) << 4) | ((ackedInfo.prevLqi >> 4) & 0x0F);
+    const byte19 = ((ackedInfo.prevLqi & 0x0F) << 4) | (ackedInfo.txPowerLevel & 0x0F);
 
-    const allBitsString = [byte29, byte30, byte31, byte32, byte33].map(b => b.toString(2).padStart(8, '0')).join('');
+    const allBitsString = [byte15, byte16, byte17, byte18, byte19].map(b => b.toString(2).padStart(8, '0')).join('');
 
     const fields = [
         { name: 'Has Battery', value: ackedInfo.hasBattery ? 'Yes' : 'No', color: 'bg-lime-600' },
@@ -162,7 +162,7 @@ const HealthBlobVisualizer: React.FC<{ ackedInfo: AckedPacketInfo }> = ({ ackedI
     return (
         <div className="space-y-4">
             <div className="flex flex-col space-y-2">
-                <div className="font-mono text-xs text-neutral-500 text-center">Bytes 29-33</div>
+                <div className="font-mono text-xs text-neutral-500 text-center">Bytes 15-19</div>
                 <div className="bg-black/40 p-3 rounded-lg border border-neutral-800">
                     {renderHoverableBits(bitFieldDefinitions)}
                 </div>
@@ -238,7 +238,7 @@ const LocationBlobVisualizer: React.FC<{ ackedInfo: AckedPacketInfo }> = ({ acke
     return (
         <div className="space-y-4">
             <div className="flex flex-col space-y-2">
-                <div className="font-mono text-xs text-neutral-500 text-center">Bytes 34-50 (136 bits)</div>
+                <div className="font-mono text-xs text-neutral-500 text-center">Bytes 20-36 (136 bits)</div>
                 <div className="bg-black/40 p-3 rounded-lg border border-neutral-800">
                     {renderHoverableBits(bitFieldDefinitions)}
                 </div>
@@ -262,15 +262,15 @@ const LocationBlobVisualizer: React.FC<{ ackedInfo: AckedPacketInfo }> = ({ acke
 const AckPayloadVisualizer: React.FC<{ ackedInfo: AckedPacketInfo }> = ({ ackedInfo }) => {
     return (
         <div className="bg-black/20 p-1 rounded-lg space-y-4">
-            <Section label="Acknowledged Nonce" byteCount={12}>
-                <div className="grid grid-cols-6 md:grid-cols-12 gap-2">
-                    {Array.from(ackedInfo.nonce).map((byte, i) => <ByteCell key={i} value={byte} color="bg-cyan-600" />)}
+            <Section label="Acknowledged Packet ID" byteCount={6}>
+                <div className="grid grid-cols-6 gap-2">
+                    {Array.from(ackedInfo.packetId).map((byte, i) => <ByteCell key={i} value={byte} color="bg-cyan-600" />)}
                 </div>
             </Section>
 
-            <Section label="Acknowledged Signature" byteCount={16}>
-                <div className="grid grid-cols-8 md:grid-cols-16 gap-2">
-                    {Array.from(ackedInfo.signature).map((byte, i) => <ByteCell key={i} value={byte} color="bg-purple-600" />)}
+            <Section label="Acknowledged Inner MAC" byteCount={8}>
+                <div className="grid grid-cols-8 gap-2">
+                    {Array.from(ackedInfo.innerMac).map((byte, i) => <ByteCell key={i} value={byte} color="bg-purple-600" />)}
                 </div>
             </Section>
 
@@ -289,7 +289,7 @@ const AckPayloadVisualizer: React.FC<{ ackedInfo: AckedPacketInfo }> = ({ ackedI
                 </div>
             )}
 
-            <Section label="Reserved" byteCount={ackedInfo.telemetryBit ? 3 : 25}>
+            <Section label="Reserved" byteCount={ackedInfo.telemetryBit ? 19 : 41}>
                 <p className="text-xs text-neutral-500 pt-2 text-center">These bytes are reserved for future use.</p>
             </Section>
         </div>

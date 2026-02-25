@@ -7,7 +7,7 @@ description: Byte structures encompassing Flags, Uptime limits, and Environmenta
 
 While `Type 1 Ping` explicitly analyzes topological routing hops, the **Type 3 Telemetry** packet defines a highly dense structure reporting exact environmental conditions, positional movement data, and hardware sensors of remote nodes.
 
-This packet efficiently packs values that, if formatted via JSON or XML ASCII, would violently overflow the 54-byte capacity constraints.
+This packet efficiently packs values that, if formatted via JSON or XML ASCII, would violently overflow the 56-byte capacity constraints.
 
 ## 12.1 The Telemetry Base Array
 
@@ -17,11 +17,11 @@ Every Telemetry packet utilizes the same 21-byte header foundation:
 |---:|:---|:---|
 | `0 - 16` | **17 Byte ASCII** | **Tag**: Human Readable Device Name string (e.g., `APEX-Relay-East`) |
 | `17 - 19` | **3 Byte Integer** | **Uptime**: Total Node system ticks (`0.25s` per tick), representing 11+ Days array limit. |
-| `20` | **1 Byte Flag** | **Flags**: Dictates the conditional presence of additional trailing data blobs inside the 33-byte remaining string footprint. |
+| `20` | **1 Byte Flag** | **Flags**: Dictates the conditional presence of additional trailing data blobs inside the 35-byte remaining footprint. |
 
 ```mermaid
 graph LR
-    A["Tag / Name<br>(17 Bytes)"] --- B["Uptime<br>(3 Bytes)"] --- C["Bit Flags<br>(1 Byte)"] -. "Conditional Appends" .-> D["Dynamic Payload Blob<br>(Up to 33 Bytes)"]
+    A["Tag / Name<br>(17 Bytes)"] --- B["Uptime<br>(3 Bytes)"] --- C["Bit Flags<br>(1 Byte)"] -. "Conditional Appends" .-> D["Dynamic Payload Blob<br>(Up to 35 Bytes)"]
     classDef base fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:white;
     classDef dynamic fill:#1e1e2e,stroke:#a855f7,stroke-width:2px,stroke-dasharray: 5 5,color:white;
     class A,B,C base;
@@ -32,7 +32,7 @@ graph LR
 
 Offset byte 20 directly toggles the existence of proceeding metric blocks.
 
-| Bit (`&`) | Toggle Description | Appended Payload Bytes if True (+33 Cap) |
+| Bit (`&`) | Toggle Description | Appended Payload Bytes if True (+35 Cap) |
 |:---:|:---|:---|
 | `0x80` (`7`) | **Has Battery Info** | `+4 Bytes` (Voltage/Current integer representation) |
 | `0x40` (`6`) | **Has Location Blob** | `+17 Bytes` (High Density compression format) |
@@ -79,7 +79,7 @@ flowchart TD
 
 ## 12.4 Interactive Telemetry Analysis
 
-The visualizer below explicitly breaks down a maximum-density Telemetry packet containing every possible 54-byte metric. Notice how the bit fields map densely against the byte limits.
+The visualizer below explicitly breaks down a maximum-density Telemetry packet containing every possible 56-byte metric. Notice how the bit fields map densely against the byte limits.
 
 import TelemetryPayloadVisualizerMDX from '@/components/visualizer/TelemetryPayloadVisualizerMDX';
 

@@ -50,8 +50,8 @@ const Section: React.FC<{ label: string; byteCount: number; children: React.Reac
 
 const ControlBits: React.FC<{ config: PacketHeaderConfig }> = ({ config }) => {
     const fieldsByte0: BitField[] = [
-        { name: 'Type', value: `${config.type} ${packetTypeMap[config.type] ? `(${packetTypeMap[config.type]})` : ''}`, bits: (config.type).toString(2).padStart(5, '0'), color: 'bg-blue-600' },
-        { name: 'TTL', value: config.ttl.toString(), bits: (config.ttl).toString(2).padStart(3, '0'), color: 'bg-emerald-600' },
+        { name: 'Type', value: `${config.type} ${packetTypeMap[config.type] ? `(${packetTypeMap[config.type]})` : ''}`, bits: (config.type).toString(2).padStart(4, '0'), color: 'bg-blue-600' },
+        { name: 'TTL', value: config.ttl.toString(), bits: (config.ttl).toString(2).padStart(4, '0'), color: 'bg-emerald-600' },
     ];
 
     const fieldsByte1: BitField[] = [
@@ -149,21 +149,28 @@ const HeaderVisualizer: React.FC<{ config: PacketHeaderConfig }> = ({ config }) 
                 <ControlBits config={config} />
             </Section>
 
-            <Section label="Nonce" byteCount={12}>
-                <div className="grid grid-cols-6 md:grid-cols-12 gap-2">
-                    {Array.from(config.nonce).map((byte, i) => <ByteCell key={i} value={byte} color="bg-cyan-600" />)}
-                </div>
-            </Section>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Section label="Packet ID" byteCount={6}>
+                    <div className="grid grid-cols-6 gap-2">
+                        {Array.from(config.packetId).map((byte, i) => <ByteCell key={i} value={byte} color="bg-cyan-600" />)}
+                    </div>
+                </Section>
                 <Section label="Destination" byteCount={6}>
                     <div className="grid grid-cols-6 gap-2">
                         {Array.from(config.destination).map((byte, i) => <ByteCell key={i} value={byte} color="bg-emerald-600" />)}
                     </div>
                 </Section>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Section label="Source" byteCount={6}>
                     <div className="grid grid-cols-6 gap-2">
                         {Array.from(config.source).map((byte, i) => <ByteCell key={i} value={byte} color="bg-amber-600" />)}
+                    </div>
+                </Section>
+                <Section label="Hop Nonce" byteCount={4}>
+                    <div className="grid grid-cols-4 gap-2">
+                        {Array.from(config.hopNonce).map((byte, i) => <ByteCell key={i} value={byte} color="bg-purple-600" />)}
                     </div>
                 </Section>
             </div>

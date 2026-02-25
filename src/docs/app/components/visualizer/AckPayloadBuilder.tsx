@@ -176,27 +176,27 @@ const AckPayloadBuilder: React.FC<AckPayloadBuilderProps> = ({ ackedPacketInfo, 
 
     return (
         <div className="space-y-4">
-            <div className={`p-1 -m-1 rounded-lg transition-all ${isHovered(26, 37) ? highlightClass : ''}`}>
-                <Label htmlFor="acked-nonce" tooltip="The 12-byte nonce of the packet being acknowledged.">ACKed Nonce</Label>
+            <div className={`p-1 -m-1 rounded-lg transition-all ${isHovered(0, 5) ? highlightClass : ''}`}>
+                <Label htmlFor="acked-packet-id" tooltip="The 6-byte packet ID of the packet being acknowledged.">ACKed Packet ID</Label>
                 <div className="mt-1 flex items-center space-x-2">
                     <div className="flex-grow font-mono text-sm p-2 bg-slate-950 rounded-md text-slate-400 border border-slate-700 break-all">
-                        {bytesToHex(ackedPacketInfo.nonce)}
+                        {bytesToHex(ackedPacketInfo.packetId)}
                     </div>
-                    <button onClick={() => handleAckedInfoChange('nonce', generateRandomBytes(12))} className={buttonClasses}>New</button>
+                    <button onClick={() => handleAckedInfoChange('packetId', generateRandomBytes(6))} className={buttonClasses}>New</button>
                 </div>
             </div>
 
-            <div className={`p-1 -m-1 rounded-lg transition-all ${isHovered(38, 53) ? highlightClass : ''}`}>
-                <Label htmlFor="acked-signature" tooltip="The 16-byte signature of the packet being acknowledged.">ACKed Signature</Label>
+            <div className={`p-1 -m-1 rounded-lg transition-all ${isHovered(6, 13) ? highlightClass : ''}`}>
+                <Label htmlFor="acked-inner-mac" tooltip="The 8-byte Inner MAC of the packet being acknowledged.">ACKed Inner MAC</Label>
                 <div className="mt-1 flex items-center space-x-2">
                     <div className="flex-grow font-mono text-sm p-2 bg-slate-950 rounded-md text-slate-400 border border-slate-700 break-all">
-                        {bytesToHex(ackedPacketInfo.signature)}
+                        {bytesToHex(ackedPacketInfo.innerMac)}
                     </div>
-                    <button onClick={() => handleAckedInfoChange('signature', generateRandomBytes(16))} className={buttonClasses}>New</button>
+                    <button onClick={() => handleAckedInfoChange('innerMac', generateRandomBytes(8))} className={buttonClasses}>New</button>
                 </div>
             </div>
 
-            <div className={`p-1 -m-1 rounded-lg transition-all ${isHovered(54, 54) ? highlightClass : ''}`}>
+            <div className={`p-1 -m-1 rounded-lg transition-all ${isHovered(14, 14) ? highlightClass : ''}`}>
                 <div>
                     <Label htmlFor="acked-fragment-index" tooltip="The fragment index of the packet being acknowledged (4 bits).">{`ACKed Fragment Index: ${ackedPacketInfo.fragmentIndex}`}</Label>
                     <Slider

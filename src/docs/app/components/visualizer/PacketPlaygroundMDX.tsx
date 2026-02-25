@@ -14,13 +14,14 @@ export default function PacketPlaygroundMDX() {
     const [config, setConfig] = useState<PacketHeaderConfig>({
         type: PacketType.MESSAGE,
         addressing: AddressingType.UNICAST,
-        ttl: 7,
+        ttl: 15,
         wantAck: true,
         fragmentIndex: 0,
         lastFragment: true,
-        nonce: Hermes.generateRandomBytes(12),
+        packetId: Hermes.generateRandomBytes(6),
         destination: Hermes.hexToBytes("C0FFEE123456", 6),
         source: Hermes.hexToBytes("BEEF42654321", 6),
+        hopNonce: Hermes.generateRandomBytes(4),
     });
     const [sharedSecret, setSharedSecret] = useState<Uint8Array>(Hermes.generateRandomBytes(32));
     const [ackedPacketInfo, setAckedPacketInfo] = useState<AckedPacketInfo | null>(null);
@@ -39,7 +40,7 @@ export default function PacketPlaygroundMDX() {
             if (config.type === PacketType.PING) {
                 payload = Hermes.buildPayloadFromHopPath(hopPath);
             } else {
-                payload = Hermes.textToBytes(payloadText, 54);
+                payload = Hermes.textToBytes(payloadText, 56);
             }
             rawPacket = Hermes.buildRawPacket(config, payload, sharedSecret);
         }
@@ -48,7 +49,7 @@ export default function PacketPlaygroundMDX() {
 
     const rawPacketHighlights = useMemo(() => {
         const base = [
-            { index: 0, length: 26, color: 'bg-indigo-600 text-white shadow-sm ring-1 ring-white/10', label: 'Header' },
+            { index: 0, length: 24, color: 'bg-indigo-600 text-white shadow-sm ring-1 ring-white/10', label: 'Header' },
             { index: 80, length: 16, color: 'bg-purple-600 text-white shadow-sm ring-1 ring-white/10', label: 'Signature' },
         ];
 
@@ -56,30 +57,30 @@ export default function PacketPlaygroundMDX() {
 
         if (config.type === PacketType.ACK) {
             payloadHighlights = [
-                { index: 26, length: 12, color: 'bg-emerald-700 text-white shadow-sm ring-1 ring-white/10', label: 'ACK Nonce' },
-                { index: 38, length: 16, color: 'bg-emerald-600 text-white shadow-sm ring-1 ring-white/10', label: 'ACK Sig' },
-                { index: 54, length: 1, color: 'bg-teal-600 text-white shadow-sm ring-1 ring-white/10', label: 'Bits' },
-                { index: 55, length: 5, color: 'bg-green-600 text-white shadow-sm ring-1 ring-white/10', label: 'Health' },
-                { index: 60, length: 17, color: 'bg-lime-600 text-white shadow-sm ring-1 ring-white/10', label: 'Location' },
-                { index: 77, length: 3, color: 'bg-emerald-950 text-white shadow-sm ring-1 ring-white/10', label: 'Pad' },
+                { index: 24, length: 6, color: 'bg-emerald-700 text-white shadow-sm ring-1 ring-white/10', label: 'ACKed PktID' },
+                { index: 30, length: 8, color: 'bg-emerald-600 text-white shadow-sm ring-1 ring-white/10', label: 'ACKed MAC' },
+                { index: 38, length: 1, color: 'bg-teal-600 text-white shadow-sm ring-1 ring-white/10', label: 'Bits' },
+                { index: 39, length: 5, color: 'bg-green-600 text-white shadow-sm ring-1 ring-white/10', label: 'Health' },
+                { index: 44, length: 17, color: 'bg-lime-600 text-white shadow-sm ring-1 ring-white/10', label: 'Location' },
+                { index: 61, length: 19, color: 'bg-emerald-950 text-white shadow-sm ring-1 ring-white/10', label: 'Pad' },
             ];
         } else if (config.type === PacketType.PING) {
             payloadHighlights = Array.from({ length: 9 }).map((_, i) => ({
-                index: 26 + (i * 6),
+                index: 24 + (i * 6),
                 length: 6,
                 color: i % 2 === 0 ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-white/10' : 'bg-teal-600 text-white shadow-sm ring-1 ring-white/10',
                 label: `Hop ${i + 1}`
             }));
         } else if (config.type === PacketType.TELEMETRY) {
             payloadHighlights = [
-                { index: 26, length: 17, color: 'bg-emerald-700 text-white shadow-sm ring-1 ring-white/10', label: 'Tag' },
-                { index: 43, length: 3, color: 'bg-teal-600 text-white shadow-sm ring-1 ring-white/10', label: 'Uptime' },
-                { index: 46, length: 1, color: 'bg-green-600 text-white shadow-sm ring-1 ring-white/10', label: 'Flags' },
-                { index: 47, length: 33, color: 'bg-emerald-600 text-white shadow-sm ring-1 ring-white/10', label: 'Blobs' },
+                { index: 24, length: 17, color: 'bg-emerald-700 text-white shadow-sm ring-1 ring-white/10', label: 'Tag' },
+                { index: 41, length: 3, color: 'bg-teal-600 text-white shadow-sm ring-1 ring-white/10', label: 'Uptime' },
+                { index: 44, length: 1, color: 'bg-green-600 text-white shadow-sm ring-1 ring-white/10', label: 'Flags' },
+                { index: 45, length: 35, color: 'bg-emerald-600 text-white shadow-sm ring-1 ring-white/10', label: 'Blobs' },
             ];
         } else {
             payloadHighlights = [
-                { index: 26, length: 54, color: 'bg-emerald-600 text-white shadow-sm ring-1 ring-white/10', label: 'Generic Payload' },
+                { index: 24, length: 56, color: 'bg-emerald-600 text-white shadow-sm ring-1 ring-white/10', label: 'Generic Payload' },
             ];
         }
 
@@ -90,9 +91,10 @@ export default function PacketPlaygroundMDX() {
         const exportData = {
             config: {
                 ...config,
-                nonce: Array.from(config.nonce),
+                packetId: Array.from(config.packetId),
                 destination: Array.from(config.destination),
                 source: Array.from(config.source),
+                hopNonce: Array.from(config.hopNonce),
             },
             sharedSecret: Array.from(sharedSecret),
             payloadText,
@@ -117,9 +119,10 @@ export default function PacketPlaygroundMDX() {
                 if (data.config) {
                     setConfig({
                         ...data.config,
-                        nonce: new Uint8Array(data.config.nonce),
+                        packetId: new Uint8Array(data.config.packetId),
                         destination: new Uint8Array(data.config.destination),
                         source: new Uint8Array(data.config.source),
+                        hopNonce: new Uint8Array(data.config.hopNonce),
                     });
                 }
                 if (data.sharedSecret) setSharedSecret(new Uint8Array(data.sharedSecret));

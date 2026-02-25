@@ -79,8 +79,8 @@ const PacketBuilder: React.FC<PacketBuilderProps> = ({
         if (config.type === PacketType.ACK) {
             if (!ackedPacketInfo) {
                 const ackInfo: AckedPacketInfo = {
-                    nonce: generateRandomBytes(12),
-                    signature: generateRandomBytes(16),
+                    packetId: generateRandomBytes(6),
+                    innerMac: generateRandomBytes(8),
                     fragmentIndex: Math.floor(Math.random() * 16),
                     lastFragment: Math.random() > 0.5,
                     status: AckStatus.ACK_OK,
@@ -200,13 +200,25 @@ const PacketBuilder: React.FC<PacketBuilderProps> = ({
 
                 <PanelSection title="Security & Signatures" icon={<Lock className="w-4 h-4 text-rose-400" />}>
                     <div className="flex-1 space-y-4">
-                        <div className={`p-2 -m-2 transition-all ${isHovered(2, 13) ? highlightClass : ''}`}>
-                            <Label htmlFor="nonce" tooltip="12-byte nonce for ChaCha20 encryption.">ChaCha20 Nonce Initialization Vector</Label>
+                        <div className={`p-2 -m-2 transition-all ${isHovered(2, 7) ? highlightClass : ''}`}>
+                            <Label htmlFor="packet-id" tooltip="6-byte unique identifier for deduplication.">Static Packet ID</Label>
                             <div className="flex items-center gap-2">
                                 <div className="flex-grow font-mono text-xs text-neutral-400 max-w-[280px] truncate bg-black/40 p-2 rounded border border-neutral-800">
-                                    {bytesToHex(config.nonce)}
+                                    {bytesToHex(config.packetId)}
                                 </div>
-                                <button onClick={() => setConfig(prev => ({ ...prev, nonce: generateRandomBytes(12) }))} className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-[10px] font-bold uppercase rounded text-neutral-300 transition-colors">
+                                <button onClick={() => setConfig(prev => ({ ...prev, packetId: generateRandomBytes(6) }))} className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-[10px] font-bold uppercase rounded text-neutral-300 transition-colors">
+                                    Refresh
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className={`p-2 -m-2 mt-2 transition-all ${isHovered(20, 23) ? highlightClass : ''}`}>
+                            <Label htmlFor="hop-nonce" tooltip="4-byte nonce for hop-by-hop obfuscation.">Dynamic Hop Nonce</Label>
+                            <div className="flex items-center gap-2">
+                                <div className="flex-grow font-mono text-xs text-neutral-400 max-w-[280px] truncate bg-black/40 p-2 rounded border border-neutral-800">
+                                    {bytesToHex(config.hopNonce)}
+                                </div>
+                                <button onClick={() => setConfig(prev => ({ ...prev, hopNonce: generateRandomBytes(4) }))} className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-[10px] font-bold uppercase rounded text-neutral-300 transition-colors">
                                     Refresh
                                 </button>
                             </div>
@@ -261,7 +273,7 @@ const PacketBuilder: React.FC<PacketBuilderProps> = ({
                                     <Label htmlFor="ttl" tooltip="Time To Live Mesh Depletion count.">TTL limit</Label>
                                     <span className="text-xs font-mono text-sky-400">{config.ttl}</span>
                                 </div>
-                                <Slider id="ttl" min={0} max={7} value={config.ttl} onChange={(e) => setConfig(prev => ({ ...prev, ttl: parseInt(e.target.value) }))} disabled={config.addressing === AddressingType.BROADCAST} />
+                                <Slider id="ttl" min={0} max={15} value={config.ttl} onChange={(e) => setConfig(prev => ({ ...prev, ttl: parseInt(e.target.value) }))} disabled={config.addressing === AddressingType.BROADCAST} />
                             </div>
                             <div>
                                 <div className="flex justify-between items-center mb-1">
@@ -287,7 +299,7 @@ const PacketBuilder: React.FC<PacketBuilderProps> = ({
 
                 <PanelSection title="Network Routing" icon={<Database className="w-4 h-4 text-purple-400" />}>
                     <div className="space-y-5 w-full">
-                        <div className={`p-2 -m-2 transition-all ${isHovered(14, 19) ? highlightClass : ''}`}>
+                        <div className={`p-2 -m-2 transition-all ${isHovered(8, 13) ? highlightClass : ''}`}>
                             <AddressInput
                                 label="Target Destination"
                                 tooltip="6-byte destination node or subnet address."
@@ -296,7 +308,7 @@ const PacketBuilder: React.FC<PacketBuilderProps> = ({
                                 disabled={config.addressing === AddressingType.BROADCAST || config.addressing === AddressingType.DISCOVER}
                             />
                         </div>
-                        <div className={`p-2 -m-2 pt-0 transition-all ${isHovered(20, 25) ? highlightClass : ''}`}>
+                        <div className={`p-2 -m-2 pt-0 transition-all ${isHovered(14, 19) ? highlightClass : ''}`}>
                             <AddressInput
                                 label="Originating Source"
                                 tooltip="6-byte source node or subnet address (can be encrypted)."
@@ -322,20 +334,27 @@ const PacketBuilder: React.FC<PacketBuilderProps> = ({
                                 <TelemetryPayloadBuilder telemetryInfo={telemetryPacketInfo} setTelemetryInfo={setTelemetryPacketInfo} />
                             </div>
                         ) : (
-                            <div className={`h-[280px] flex flex-col p-2 -m-2 transition-all ${isHovered(26, 79) ? highlightClass : ''}`}>
-                                <Label htmlFor="payload-text" tooltip="Up to 54 bytes of application-specific data.">Raw Byte String Body</Label>
+                            <div className={`h-[280px] flex flex-col p-2 -m-2 transition-all ${isHovered(24, 79) ? highlightClass : ''}`}>
                                 <textarea
                                     id="payload-text"
                                     value={payloadText}
                                     onChange={(e) => setPayloadText(e.target.value)}
                                     className={`${baseInputClasses} flex-1 resize-none bg-black/60 font-mono text-sm p-4 w-full block focus-visible:outline-none transition-all rounded-md focus-visible:border-sky-500/50`}
-                                    maxLength={54}
+                                    maxLength={300} // Loose limit, internal logic counts bytes
                                 ></textarea>
                                 <div className="flex justify-between items-center mt-2 px-1">
-                                    <span className="text-[10px] uppercase font-bold text-neutral-600 tracking-widest">UTF-8 Encoded</span>
-                                    <span className={`text-[10px] font-mono font-bold ${new TextEncoder().encode(payloadText).length > 40 ? 'text-amber-400' : 'text-emerald-500'}`}>
-                                        {new TextEncoder().encode(payloadText).length}/54 bytes
-                                    </span>
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] uppercase font-bold text-neutral-600 tracking-widest">Text Encoding</span>
+                                        <span className="text-[9px] text-neutral-500 italic">Auto-switching GSM-7 / UTF-8</span>
+                                    </div>
+                                    <div className="flex flex-col items-end">
+                                        <span className={`text-[10px] font-mono font-bold ${new TextEncoder().encode(payloadText).length > 56 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                                            {new TextEncoder().encode(payloadText).length}/56 Bytes
+                                        </span>
+                                        <span className={`text-[9px] font-mono font-bold ${Math.ceil(new TextEncoder().encode(payloadText).length * 8 / 7) > 64 ? 'text-rose-500' : 'text-neutral-400'}`}>
+                                            ~{Math.floor(new TextEncoder().encode(payloadText).length * 8 / 7)}/64 Chars (GSM-7)
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         )}

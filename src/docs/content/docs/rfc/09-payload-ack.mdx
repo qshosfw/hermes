@@ -11,25 +11,25 @@ When a packet requests an Acknowledgment (`Want Ack` = 1), the receiving node re
 
 ## 9.1 Base ACK Structure
 
-The ACK payload completely utilizes the 54-byte envelope constraint to securely sign for the target packet while simultaneously supplying highly compressed backchannel data. 
+The ACK payload completely utilizes the 56-byte envelope constraint to securely sign for the target packet while simultaneously supplying highly compressed backchannel data. 
 
 ```mermaid
 graph LR
-    A["ACKed Nonce<br>(12 Bytes)"] --- B["ACKed Signature<br>(16 Bytes)"] --- C["Bitfields<br>(1 Byte)"] --- D["Health Blob<br>(5 Bytes)"] --- E["Location Blob<br>(17 Bytes)"]
+    A["ACKed Packet ID<br>(6 Bytes)"] --- B["ACKed Inner MAC<br>(8 Bytes)"] --- C["Bitfields<br>(1 Byte)"] --- D["Health Blob<br>(5 Bytes)"] --- E["Location Blob<br>(17 Bytes)"]
     classDef default fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:white;
 ```
 
 | Field | Range (Bytes) | Description |
 |---:|---:|---|
-| **ACKed Nonce** | `0 - 11` (12 Bytes) | The exact 96-bit Nonce from the Transport Header of the Packet being ACKed. |
-| **ACKed Signature** | `12 - 27` (16 Bytes) | The exact 128-bit Poly1305 Signature of the Packet being ACKed. |
-| **Bitfields** | `28` (1 Byte) | Contains routing statuses, fragment definitions, and telemetry toggles. |
-| **Health Blob** | `29 - 33` (5 Bytes) *(Optional)* | Active if the Telemetry bit is `1`. RSSI metrics, LQI, and Battery Voltage. |
-| **Location Blob** | `34 - 50` (17 Bytes) *(Optional)* | Active if the Telemetry bit is `1`. Packed GPS latitude, longitude, and heading data. |
+| **ACKed Packet ID** | `0 - 5` (6 Bytes) | The unique 48-bit identifier of the packet being ACKed. |
+| **ACKed Inner MAC** | `6 - 13` (8 Bytes) | The static e2e Poly1305 signature of the subject packet's payload. |
+| **Bitfields** | `14` (1 Byte) | Contains routing statuses, fragment definitions, and telemetry toggles. |
+| **Health Blob** | `15 - 19` (5 Bytes) *(Optional)* | Active if the Telemetry bit is `1`. RSSI metrics, LQI, and Battery Voltage. |
+| **Location Blob** | `20 - 36` (17 Bytes) *(Optional)* | Active if the Telemetry bit is `1`. Packed GPS latitude, longitude, and heading data. |
 
-## 9.2 The Bitfields (Byte 28)
+## 9.2 The Bitfields (Byte 14)
 
-Byte 28 densely packs flags crucial to evaluating the payload state and adjusting Transmit backoff timing.
+Byte 14 densely packs flags crucial to evaluating the payload state and adjusting Transmit backoff timing.
 
 | Bits | Use | Value / Options |
 |:---:|:---|:---|
@@ -40,7 +40,7 @@ Byte 28 densely packs flags crucial to evaluating the payload state and adjustin
 
 ## 9.3 The Telemetry Blobs
 
-If the payload Transport specifies the Telemetry bit, an ACK leverages its remaining 25 bytes to supply incredibly dense statistics directly referencing the connection parameters. 
+If the payload Transport specifies the Telemetry bit, an ACK leverages its remaining bytes to supply incredibly dense statistics directly referencing the connection parameters. 
 
 The Link Quality Indicator (LQI) provides a robust `0-255` metric evaluating the probability of transmission success. Rather than employing computationally expensive floating-point math (e.g., Sigmoids with exponentiation), Hermes implements a **Fast Integer Sigmoid** (Elliot sigmoid approximation) optimized perfectly for bit-shift operations on embedded cores.
 
@@ -71,13 +71,13 @@ LQI_{fast} = clamp\left(0, \frac{P_{int}(S_{fwd}) + P_{int}(S_{rev})}{2}, 255\ri
 
 | Byte Address | Bit Allocation | Data Field | Range / Note |
 |:---:|:---:|:---|:---|
-| `29` | **1** (`0x80`) | Has Battery | Defines if following 7 bits hold voltage data. |
-| `29` | **7** (`0x7F`) | Battery Voltage | 0.0V–12.7V in 0.1V steps. |
-| `30` | **7** | ACKed RSSI | The received signal strength of the packet being ACKed (-120 to +6 dBm). |
-| `30 - 31` | **7** | ACKing RSSI | Signal strength of the previous packet from the destination. |
-| `31 - 32` | **6** | Idle RSSI | Background noise floor metrics directly logged from the radio receiver (-120 to -60 dBm). |
-| `32 - 33` | **8** | Previous LQI | LQI scale (`0-255`) utilizing the fast integer sigmoid evaluating link reliability. |
-| `33` | **4**  | TX Power | Represents the active Logarithmic Power scale Output from the Radio hardware. |
+| `15` | **1** (`0x80`) | Has Battery | Defines if following 7 bits hold voltage data. |
+| `15` | **7** (`0x7F`) | Battery Voltage | 0.0V–12.7V in 0.1V steps. |
+| `16` | **7** | ACKed RSSI | Received signal strength of the packet being ACKed (-120 to +6 dBm). |
+| `16 - 17` | **7** | ACKing RSSI | Signal strength of the previous packet from the destination. |
+| `17 - 18` | **6** | Idle RSSI | Background noise floor metrics directly logged from the radio receiver (-120 to -60 dBm). |
+| `18 - 19` | **8** | Previous LQI | LQI scale (`0-255`) utilizing the fast integer sigmoid evaluating link reliability. |
+| `19` | **4**  | TX Power | Represents the active Logarithmic Power scale Output from the Radio hardware. |
 
 ### 9.3.2 Location Blob (17 Bytes)
 

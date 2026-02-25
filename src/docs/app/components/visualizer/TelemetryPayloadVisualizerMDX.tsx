@@ -40,7 +40,7 @@ export default function TelemetryPayloadVisualizerMDX() {
         customData: ""
     };
 
-    const payload = new Uint8Array(54);
+    const payload = new Uint8Array(56);
     payload[20] = 0xFE; // All bits 1-7 set to true
 
     return (

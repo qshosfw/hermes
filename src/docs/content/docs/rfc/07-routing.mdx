@@ -44,20 +44,39 @@ When you send a message to a group (Multicast) or to everyone on the channel (Br
 
 Instead, Hermes relies on **Controlled Flooding**. It is a heavily optimized way to ensure messages reach the edges of the network without overwhelming the airwaves.
 
-### How Controlled Flooding Works
+### 7.3.1 Router Deduplication (6-byte Packet ID)
 
-Instead of randomly rebroadcasting everything, nodes use a smart set of rules:
+To prevent infinite loops, intermediate routers maintain a localized deduplication cache. Because the **Packet ID** is 6 bytes ($2^{48}$ combinations), it is globally collision-resistant. 
 
-1. **Memory (Heard List):** If I have already heard this exact message from someone else in the last few minutes, I will ignore it. This prevents endless echo loops.
-2. **Hop Count (TTL):** Messages can only be passed a maximum number of times (e.g., 7 hops). If a message has hopped too many times, it forces it to stop.
-3. **Smart Waiting (SNR Backoff):** If I receive a fresh message to pass on, I don't send it immediately. Instead, I wait based on how clear the signal was (**Signal-to-Noise Ratio**). 
-    - **Clear Signal:** I wait a very short time.
-    - **Weak Signal:** I wait a long time.
-4. **Implicit Acknowledgment (Suppression):** While I am waiting my turn to rebroadcast, if I hear someone else near me broadcast the exact same message... I silently cancel my own turn. Why waste battery and airtime if my neighbor already did the job?
+Routers simply cache the 6-byte Packet ID parsed directly from the cleartext header. If a router receives a packet with an ID that currently exists in its cache, the packet is silently dropped as a duplicate.
 
-This elegant chaos builds the most optimal routing paths completely automatically.
+### 7.3.2 Hop-by-Hop Obfuscation Cycle
 
-### Flooding Diagram (The Suppression Effect)
+Unlike traditional meshes where packets stay static, Hermes Link routers actively "re-mask" the packet at every hop to defeat traffic analysis.
+
+```mermaid
+graph TD
+    A[Receive Packet] --> B[Verify Outer MAC]
+    B -->|Verified| C["Unmask (XOR with Network Keystream)"]
+    C --> D[Check Deduplication Cache]
+    D -->|Fresh| E[Decrement TTL]
+    E --> F[Generate New Hop Nonce]
+    F --> G["Re-mask (XOR with NEW Network Keystream)"]
+    G --> H[Sign Outer MAC]
+    H --> I[Forward]
+```
+
+This ensures that the `Inner Ciphertext` is never exposed on the wire, and the entire payload (including the Inner MAC) looks like fresh random noise at every hop.
+
+## <Activity className="inline w-5 h-5 mr-2 text-orange-400" /> 7.4 Tamper Detection Intelligence
+
+The Nested Trust model provides unique diagnostic insights. Depending on where the cryptographic math fails, the system can identify specific network issues:
+
+| Warning Tier | Failure Condition | Likely Cause |
+| :--- | :--- | :--- |
+| **Shadow Tracker** | Outer MAC fails at Router | Active Jamming or Packet Injection attempt from an unauthorized node. |
+| **Ghost Router** | Inner MAC fails at Destination | **Node Compromise.** A routing node has the $K_{mesh}$ and is attempting to modify application data. |
+| **Black Hole** | TTL reaches 0 before destination | Node is physically too far away or mesh routing is inefficient. |
 
 ```mermaid
 flowchart TD

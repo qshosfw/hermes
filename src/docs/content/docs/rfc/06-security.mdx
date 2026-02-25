@@ -3,7 +3,7 @@ title: Security Structure
 description: ChaCha20, Poly1305 AEAD, Master Keys, and Sealed Sender rules
 ---
 
-import InteractiveEntropyGraphMDX from '@/components/visualizer/InteractiveEntropyGraphMDX';
+import NestedTrustVisualizerMDX from '@/components/visualizer/NestedTrustVisualizerMDX';
 import AvalancheVisualizerMDX from '@/components/visualizer/AvalancheVisualizerMDX';
 import { Lock, FileKey2, Network, EyeOff, ShieldCheck } from 'lucide-react';
 
@@ -13,53 +13,51 @@ Hermes Link provides confidentiality and integrity across the mesh network using
 
 ## <FileKey2 className="inline w-5 h-5 mr-2 text-indigo-400" /> 6.1 ChaCha20-Poly1305 AEAD
 
-<InteractiveEntropyGraphMDX />
+<NestedTrustVisualizerMDX />
 
-The protocol leans heavily on **RFC 7539** guidelines, implementing `ChaCha20` for symmetric stream cipher encryption across the Payload and `Poly1305` for hashing in an **Authenticated Encryption with Associated Data (AEAD)** construct.
+The protocol implements a **Nested Trust** model using `ChaCha20` for symmetric stream cipher encryption and `Poly1305` for hashing in an **Authenticated Encryption with Associated Data (AEAD)** construct.
 
-For signatures and encryption computations, standard library routines are optimal. For constrained platforms such as the Beken B4819 MCUs or bare metal systems, utilizing simple C99 implementations is standard:
+Uniquely, Hermes Link splits encryption and authentication into two distinct layers:
 
-> [grigorig/chachapoly](https://github.com/grigorig/chachapoly) - Lightweight ChaCha20-Poly1305 in C99
+1.  **Inner Layer (End-to-End):** Secures the payload and masks the sender's identity using the **Scope Traffic Key**.
+2.  **Outer Layer (Hop-by-Hop):** Authenticates the header and obfuscates the entire packet using the **Base Network Key**.
 
-```c
-// Hermes ChaCha20-Poly1305 AEAD Encryption Payload
-#include "chachapoly.h"
+### 6.1.1 Split-MAC Structure (8 + 8 Bytes)
 
-void Hermes_EncryptPayload(
-    const uint8_t* master_key,   // 32-byte network key
-    const uint8_t* header_nonce, // 12-byte nonce from header
-    const uint8_t* header_aead,  // 26-byte authenticated header data
-    uint8_t* payload,            // 54-byte plaintext payload (in-place encryption)
-    uint8_t* out_mac             // 16-byte Poly1305 output tag
-) {
-    chachapoly_ctx ctx;
-    chachapoly_init(&ctx, master_key, header_nonce);
-    
-    // 1. Authenticate the unencrypted Header (Associated Data)
-    chachapoly_update_aad(&ctx, header_aead, 26);
-    
-    // 2. Encrypt the Message Payload in-place
-    chachapoly_crypt(&ctx, payload, 54);
-    
-    // 3. Generate the final 16-byte MAC Signature
-    chachapoly_finish(&ctx, out_mac);
-}
+Instead of a single 16-byte signature, Hermes consumes the final 16 bytes for two truncated MACs:
+
+| Field | Size | Key Used | Verified By |
+| --- | --- | --- | --- |
+| **Inner MAC** | 8 Bytes | Traffic Key ($K_{scope}$) | Final Destination |
+| **Outer MAC** | 8 Bytes | Network Key ($K_{mesh}$) | Every Hop (Routers) |
+
+```mermaid
+graph TD
+    subgraph "96-Byte Logic Frame"
+        H[Header: 24B]
+        P[Payload: 56B]
+        IM[Inner MAC: 8B]
+        OM[Outer MAC: 8B]
+    end
 ```
+
+### 6.1.2 The "Honey-Token" (Signature Chaining)
+
+To prevent "Header Injection" attacks (where an attacker tries to swap valid headers onto different payloads), the **Outer IV** is mathematically tied to the **Inner MAC**:
+
+- **Outer IV** = `[Inner MAC (8 bytes)]` + `[Hop Nonce (4 bytes)]`
+
+This creates a cryptographic chain. If the payload is modified, the Inner MAC changes; if the Inner MAC changes, the Outer IV changes; if the Outer IV changes, the Outer MAC (routing signature) becomes invalid.
 
 ## <Network className="inline w-5 h-5 mr-2 text-emerald-400" /> 6.2 Packet Signatures
 
 <AvalancheVisualizerMDX />
 
-Packet signatures prevent active tampering from "man in the middle" actors, preventing unauthorized manipulation of headers (such as `TTL` extensions or `Destination` substitutions) and asserting authenticity.
+Packet signatures prevent active tampering and provide per-hop validation. Because the **Outer MAC** is verified by intermediate routers, tampered headers or invalidly routed packets are discarded immediately before they can waste network airtime.
 
-The protocol consumes the final 16 bytes of the total 96-byte layer window for the **Poly1305 Signature Hash**.
-
-The Poly1305 AEAD hash string is constructed securely over:
-1. **The Header** (26 Bytes)
-2. **The Output Ciphertext Payload** (54 Bytes) 
-3. **The Pre-shared Secret Key** (32 Bytes)
-
-A node immediately discards incoming packets resulting in signature comparison mismatches. This directly prevents invalidly routed packets, artificially inflated nonces, or maliciously scrambled data strings from stealing CPU processing power beyond the validation check.
+A node immediately discards incoming packets resulting in signature comparison mismatches. This provides **Tamper Detection Intelligence**:
+- **Outer MAC Failure:** Indicates radio interference or an unauthorized node attempting to inject packets into the mesh without the $K_{mesh}$.
+- **Inner MAC Failure (at destination):** Indicates a "compromised router" attack (Ghost Router). The mesh delivered the packet correctly ($K_{mesh}$ verified), but the application data was altered in transit.
 
 ## 6.3 Master Key Mechanics
 
@@ -72,32 +70,9 @@ Keys for internal subnets and 1-to-1 ratcheted Unicast sessions deviate mathemat
 
 ## 6.4 Sealed Sender Implementations
 
-When active at the network level, the Hermes protocol can employ **"Sealed Sender"** dynamics.
+When active, the Hermes protocol employs **Always-On Sealed Sender** dynamics. By default, the `Traffic Key` ($K_{scope}$) encrypts both the application payload and the 6-byte `Source` address.
 
-By default, an eavesdropper looking at the Network Layer headers can openly observe the `Destination` address alongside the corresponding 6-character `Source` Address.
-
-When Sealed Sender behavior activates, the final 6 bytes of the Header array are physically relocated into the ChaCha20 cipher cycle along with the `Payload`.
-
-While an observer can intercept the packet and identify the destination, they cannot determine which node originated the packet without the appropriate keys.
-
-```mermaid
-graph TD
-    subgraph "Standard Mesh Packet (Visible Routing)"
-        A["[Source: Node A]"] --- B["[Target: Node B]"]
-        B --- C("[Payload Data]")
-    end
-    
-    subgraph "Sealed Sender Protocol (Hidden Origin)"
-        D("[Encrypted Source]") -.-> E["[Target: Node B]"]
-        E --- F("[Payload Data]")
-    end
-    
-    classDef clear fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:white
-    classDef secret fill:#4c1d95,stroke:#a855f7,stroke-width:2px,color:white
-    
-    class A,B,C,E,F clear
-    class D secret
-```
+While an observer can intercept the packet and identify the destination (since routing nodes need cleartext destinations to forward correctly), they cannot determine which node originated the packet or what is inside it without the appropriate keys.
 
 ## <ShieldCheck className="inline w-5 h-5 mr-2 text-orange-400" /> 6.5 Secret Compartmentalization
 
@@ -134,9 +109,8 @@ The `scope_context` ensures domain separation between different communication ty
 
 | Field | Size | Details |
 |---:|---:|---|
-| **Scope Secret** | variable | User-defined ASCII string (e.g. "my-secret-group") |
-| **Scope Label** | 1 Byte | `U` (0x55) for Unicast, `M` (0x4D) for Multicast |
-| **Sender** | 6 Bytes | 6-char source address hash |
+| **Scope Secret** | variable | User-defined ASCII string (up to 57 bytes) |
+| **Scope Label** | 1 Byte | `U` (Unicast), `M` (Multicast), `B` (Broadcast), `D` (Discovery) |
 | **Destination** | 6 Bytes | 6-char destination address hash |
 
 #### PRX Pseudocode (ChaCha20)
@@ -149,20 +123,18 @@ The `scope_context` ensures domain separation between different communication ty
  */
 void Hermes_DeriveScopeKey(
     const uint8_t* k_mesh,        // 32-byte network key
-    const char* scope_secret,     // "scope_secret"
-    uint8_t scope_label,          // 'U' or 'M'
-    const uint8_t* sender,        // 6-byte source
+    const char* scope_secret,     // "scope_secret" (NULL for B/D)
+    uint8_t scope_label,          // 'U', 'M', 'B', or 'D'
     const uint8_t* destination,   // 6-byte dest
     uint8_t* out_k_scope          // Resulting 32-byte key
 ) {
     uint8_t input_block[64] = {0};
     
     // 1. Construct the context message
-    // Format: [Label][Sender][Dest][Secret...]
+    // Format: [Label][Dest][Secret...]
     input_block[0] = scope_label;
-    memcpy(input_block + 1, sender, 6);
-    memcpy(input_block + 7, destination, 6);
-    strncpy((char*)input_block + 13, scope_secret, 50); // Up to 50 chars
+    memcpy(input_block + 1, destination, 6);
+    strncpy((char*)input_block + 7, scope_secret, 57); // Up to 57 chars
 
     // 2. PRF: Generate keystream block 0 using K_mesh
     // Nonce is fixed to zero for the PRF phase
@@ -182,32 +154,25 @@ void Hermes_DeriveScopeKey(
 }
 ```
 
+### 6.5.1 NULL Secrets for Public Traffic
 
-### The "Sealed Sender" Paradox
+For **Broadcast** ('B') and **Discovery** ('D') packets, the `scope_secret` is defined as a fixed sequence of null bytes. This ensures that the Traffic Key mechanism remains universal across all Hermes communication types while allowing public traffic to be decrypted by any node possessing the Base Network Key ($K_{mesh}$).
 
-A "paradox" occurs when Secret Compartmentalization is used in conjunction with **Sealed Sender** (Section 6.4). 
+| Type | Label | Secret Requirement |
+| :--- | :--- | :--- |
+| **Unicast** | `U` (0x55) | Pre-shared Contact Secret |
+| **Multicast** | `M` (0x4D) | Pre-shared Group Secret |
+| **Broadcast** | `B` (0x42) | `NULL` (All Zeros) |
+| **Discovery** | `D` (0x44) | `NULL` (All Zeros) |
 
-1.  **Dependency**: To derive $K_{scope}$, you need the `Sender Address`.
-2.  **Sealing**: The `Sender Address` is encrypted (sealed) *using* $K_{scope}$.
-3.  **Result**: You cannot identify the sender without the key, and you cannot get the key without the sender ID.
 
-#### Resolution: Contact Iteration
+### Solving the "Sealed Sender" Paradox
 
-To resolve this circular dependency, a receiving node performs the following check for incoming sealed unicast/multicast packets:
+By removing the **Source** (Sender) from the input context of $K_{scope}$, we eliminate the circular dependency. 
 
-```c
-for (contact in known_contacts) {
-    // 1. Assume this contact is the sender
-    K_trial = PRF(K_mesh, contact.secret, 'U', contact.addr, my_addr);
-    
-    // 2. Attempt decryption and MAC verification
-    if (AEAD_Verify(K_trial, packet)) {
-        // Success! Sender identified as 'contact'
-        return contact;
-    }
-}
-// If all fail, packet is invalid or from an unknown secret scope
-```
+1.  **Direct Decryption**: The receiver knows the **Destination** address (it is cleartext).
+2.  **Key Retrieval**: The receiver looks up the `Scope Secret` associated with that destination and derives $K_{scope}$ immediately.
+3.  **Unmasking**: $K_{scope}$ is used to decrypt the header (revealing the **Sender ID**) and the payload.
 
-This logic enforces sender anonymity within the network. An observer may see a packet's destination but cannot identify the sender without access to the secrets of the network participants.
+This architecture ensures that even with a fully masked sender, the destination can decrypt the packet in a single pass without expensive trial-decryption across all known contacts.
 

@@ -9,44 +9,46 @@ While the Data Link Layer ensures the `0`s and `1`s transmitted match the data r
 
 Every Hermes packet follows a strict binary format to maximize Transport Layer efficiency and routing capabilities within the 128-byte encoded window.
 
-## 5.1 The 26-Byte Header
+## 5.1 The 24-Byte Header
 
-The Transport Header uniformly consists of 26 crucial bytes used for protocol interpretation and routing constraints. 
+The Transport Header uniformly consists of 24 crucial bytes used for protocol interpretation and routing constraints. 
 
-These 26 bytes exist precisely inside the 96 available data payload bytes (with 54 remaining for the actual specific Payload application and 16 remaining for the cryptographic signature!).
+These 24 bytes exist inside the 96 available data payload bytes (with 56 remaining for the core payload and 16 remaining for the "Split-MAC" cryptographic signatures).
 
 ```mermaid
 graph LR
-    A["Transport Header<br>(26 Bytes)"] --- B["Encrypted Core Payload<br>(54 Bytes)"] --- C["Poly1305 MAC Hash<br>(16 Bytes)"]
+    A["Transport Header<br>(24 Bytes)"] --- B["Encrypted Payload<br>(56 Bytes)"] --- C["Split-MAC<br>(2 x 8 Bytes)"]
     classDef default fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:white;
 ```
 
 | Field | Size | Details |
 |---:|---:|---|
-| **Type** | 5 bits | Ranges from 0-31, identifying the packet type (e.g., ACK, PING, MESG) |
-| **Time to Live** | 3 bits | Remaining mesh flood hops allowed (0 = Exhausted) |
+| **Type** | 4 bits | Identifies the packet application payload type |
+| **Time to Live** | 4 bits | Remaining mesh flood hops allowed (0 = Exhausted) |
 | **Addressing** | 2 bits | 0=Unicast, 1=Multicast, 2=Broadcast, 3=Discover |
 | **Want Ack** | 1 bit | `1` indicates destination node must reply with an ACK |
-| **Fragment Index** | 4 bits | Index 0-15 allowing up to 16 joined frames per message |
-| **Last Fragment** | 1 bit | `1` marks the final packet piece ending a chunk transfer |
-| **Nonce** | 12 bytes | 96-bit True Random Number serving as an Initialization Vector (IV) |
-| **Destination** | 6 bytes | Target Node or Subnet 6-character Hash |
-| **Source** | 6 bytes | Sender Node 6-character Hash |
+| **Fragment Index** | 4 bits | Index 0-15 for fragmented messages |
+| **Last Fragment** | 1 bit | `1` marks the final packet piece |
+| **Packet ID** | 6 bytes | Globally unique identifier (static across TTL hops) |
+| **Destination** | 6 bytes | Target Node or Subnet Hash |
+| **Source** | 6 bytes | Sender Node Hash (Encrypted by Traffic Key) |
+| **Hop Nonce** | 4 bytes | Per-hop randomization (updates on every re-sign) |
 
 ### 5.1.2 Addressing Constraints
 Different `Addressing` flags impact the validity of other header fields:
 - If `Addressing` is `Broadcast (2)` or `Discover (3)`, `Want Ack` is typically illegal and ignored, as a single generic destination answering back simultaneously would violently jam the network.
 - `Time to Live (TTL)` limits infinite loop forwarding on dense mesh networks where loops can cause catastrophic, unending transmission storms.
 
-### 5.1.3 The IV Nonce
-Packet headers contain a 12-byte (96-bit) **Nonce**. This is typically derived from hardware True Random Number Generators (TRNGs) combined with entropy sources such as internal RF noise or clock drift.
+### 5.1.3 Implicit & Double-Layer Nonces
+Packet headers no longer store a literal 12-byte nonce. Instead, nodes compute **Implicit Nonces** for both End-to-End (E2E) encryption and Hop-by-Hop (HBH) authentication:
 
-This nonce acts as the Initialization Vector (IV) for the ChaCha20 cipher blocks processing the interior payload. 
-It guarantees that even if a node sends the exact sequence of bytes to the same destination one hundred times, the encrypted payload blocks (and subsequent signatures) will be entirely distinct, inherently circumventing replay attacks and enforcing cipher uniqueness.
+1. **Inner IV (E2E)**: Derived from the 6-byte `Packet ID` and 6-byte `Destination`. Stays static perfectly from sender to receiver.
+2. **Outer IV (HBH)**: Derived from the 8-byte `Inner MAC` and 4-byte `Hop Nonce`. This changes at every router.
 
-### 5.1.4 Visual Example: Transport Header Detailed Expansion
+This mechanism ensures that the payload stays static for deduplication, yet is completely scrambled on the wire at every hop to defeat traffic analysis.
 
-The interactive component below maps out a standard `26-byte` Hermes transport layer header, explicitly mapping out the bits for the control flags.
+### 5.1.4 Visual Example: 24-byte Header
+The interactive component below maps out the updated 24-byte Hermes transport layer header.
 
 import HeaderVisualizerMDX from '@/components/visualizer/HeaderVisualizerMDX';
 

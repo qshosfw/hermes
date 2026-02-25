@@ -14,9 +14,10 @@ export default function HeaderVisualizerMDX() {
                 wantAck: true,
                 fragmentIndex: 0,
                 lastFragment: true,
-                nonce: Hermes.hexToBytes("C0FFEE1234567890ABCDEF12", 12),
+                packetId: Hermes.hexToBytes("AABBCCDDEEFF", 6),
                 destination: Hermes.hexToBytes("C0FFEE123456", 6),
                 source: Hermes.hexToBytes("BEEF42654321", 6),
+                hopNonce: Hermes.hexToBytes("11223344", 4),
             }} />
         </div>
     );

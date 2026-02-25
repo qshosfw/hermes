@@ -86,32 +86,35 @@ export const bytesToCallsign = (bytes: Uint8Array): string => {
 
 
 const buildHeader = (config: PacketHeaderConfig): Uint8Array => {
-    const header = new Uint8Array(26);
-    // Byte 0: Type (5 bits) | TTL (3 bits)
-    header[0] = (config.type << 3) | config.ttl;
+    const header = new Uint8Array(24);
+    // Byte 0: Type (4 bits) | TTL (4 bits)
+    header[0] = (config.type << 4) | config.ttl;
     // Byte 1: Addressing (2 bits) | Want Ack (1 bit) | Fragment Index (4 bits) | Last Fragment (1 bit)
     header[1] = (config.addressing << 6) | ((config.wantAck ? 1 : 0) << 5) | (config.fragmentIndex << 1) | (config.lastFragment ? 1 : 0);
-    // Bytes 2-13: Nonce (12 bytes)
-    header.set(config.nonce, 2);
-    // Bytes 14-19: Destination (6 bytes)
-    header.set(config.destination, 14);
-    // Bytes 20-25: Source (6 bytes)
-    header.set(config.source, 20);
+    // Bytes 2-7: Packet ID (6 bytes)
+    header.set(config.packetId, 2);
+    // Bytes 8-13: Destination (6 bytes)
+    header.set(config.destination, 8);
+    // Bytes 14-19: Source (6 bytes)
+    header.set(config.source, 14);
+    // Bytes 20-23: Hop Nonce (4 bytes)
+    header.set(config.hopNonce, 20);
     return header;
 };
 
 export const parseHeader = (buffer: Uint8Array): PacketHeaderConfig => {
-    const type = (buffer[0] >> 3) & 0x1F;
-    const ttl = buffer[0] & 0x07;
+    const type = (buffer[0] >> 4) & 0x0F;
+    const ttl = buffer[0] & 0x0F;
     const addressing = (buffer[1] >> 6) & 0x03;
     const wantAck = ((buffer[1] >> 5) & 0x01) === 1;
     const fragmentIndex = (buffer[1] >> 1) & 0x0F;
     const lastFragment = (buffer[1] & 0x01) === 1;
-    const nonce = buffer.slice(2, 14);
-    const destination = buffer.slice(14, 20);
-    const source = buffer.slice(20, 26);
+    const packetId = buffer.slice(2, 8);
+    const destination = buffer.slice(8, 14);
+    const source = buffer.slice(14, 20);
+    const hopNonce = buffer.slice(20, 24);
 
-    return { type, ttl, addressing, wantAck, fragmentIndex, lastFragment, nonce, destination, source };
+    return { type, ttl, addressing, wantAck, fragmentIndex, lastFragment, packetId, destination, source, hopNonce };
 };
 
 export const calculatePoly1305 = (header: Uint8Array, payload: Uint8Array, key: Uint8Array): Uint8Array => {
@@ -127,10 +130,10 @@ export const calculatePoly1305 = (header: Uint8Array, payload: Uint8Array, key: 
 };
 
 export const buildPayloadFromHopPath = (hopPath: Uint8Array[]): Uint8Array => {
-    const payload = new Uint8Array(54);
+    const payload = new Uint8Array(56);
     let offset = 0;
     for (const hop of hopPath) {
-        if (offset + 6 <= 54) {
+        if (offset + 6 <= 56) {
             payload.set(hop, offset);
             offset += 6;
         }
@@ -140,8 +143,9 @@ export const buildPayloadFromHopPath = (hopPath: Uint8Array[]): Uint8Array => {
 
 export const parsePingPayload = (payload: Uint8Array): Uint8Array[] => {
     const hopPath: Uint8Array[] = [];
-    for (let i = 0; i < 9; i++) { // Max 9 hops (54/6)
+    for (let i = 0; i < 9; i++) { // Max 9 hops (56/6 truncated)
         const offset = i * 6;
+        if (offset + 6 > 56) break;
         const hop = payload.slice(offset, offset + 6);
         // Check if hop is all zeros
         if (hop.every(b => b === 0)) break;
@@ -152,17 +156,17 @@ export const parsePingPayload = (payload: Uint8Array): Uint8Array[] => {
 
 export const buildRawPacket = (config: PacketHeaderConfig, payload: Uint8Array, sharedSecret: Uint8Array): { data: Uint8Array, header: Uint8Array, payload: Uint8Array, signature: Uint8Array } => {
     const header = buildHeader(config);
-    // Ensure payload is 54 bytes
-    if (payload.length !== 54) {
-        const resized = new Uint8Array(54);
-        resized.set(payload.slice(0, 54));
+    // Ensure payload is 56 bytes
+    if (payload.length !== 56) {
+        const resized = new Uint8Array(56);
+        resized.set(payload.slice(0, 56));
         payload = resized;
     }
     const signature = calculatePoly1305(header, payload, sharedSecret);
 
     const data = new Uint8Array(96);
     data.set(header, 0);
-    data.set(payload, 26);
+    data.set(payload, 24);
     data.set(signature, 80);
 
     return { data, header, payload, signature };
@@ -175,14 +179,14 @@ export const buildAckPacket = (
 ): { data: Uint8Array, header: Uint8Array, payload: Uint8Array, signature: Uint8Array } => {
     const header = buildHeader(config);
 
-    // Build the 54-byte ACK payload
-    const payload = new Uint8Array(54);
-    // 12 bytes: ACKed Nonce
-    payload.set(ackedInfo.nonce, 0);
-    // 16 bytes: ACKed Signature
-    payload.set(ackedInfo.signature, 12);
+    // Build the 56-byte ACK payload
+    const payload = new Uint8Array(56);
+    // 6 bytes: ACKed Packet ID
+    payload.set(ackedInfo.packetId, 0);
+    // 8 bytes: ACKed Inner MAC
+    payload.set(ackedInfo.innerMac, 6);
 
-    // 1 byte for bitfields at index 28
+    // 1 byte for bitfields at index 14
     // 4 bits: ACKed Fragment Index
     // 1 bit: ACKed Last Fragment
     // 2 bits: Status
@@ -192,9 +196,9 @@ export const buildAckPacket = (
         ((ackedInfo.lastFragment ? 1 : 0) << 3) |
         (ackedInfo.status << 1) |
         (ackedInfo.telemetryBit ? 1 : 0);
-    payload[28] = bitfields;
+    payload[14] = bitfields;
 
-    // Bytes 29-53: Telemetry (if telemetryBit is set)
+    // Bytes 15-39: Telemetry (if telemetryBit is set)
     if (ackedInfo.telemetryBit) {
         // --- Health Blob (5 bytes) ---
         const toRssiVal = (rssi: number): number => {
@@ -216,11 +220,11 @@ export const buildAckPacket = (
         };
         const idleRssiVal = toIdleRssiVal(ackedInfo.idleRssi);
 
-        payload[29] = (ackedInfo.hasBattery ? 0x80 : 0) | (ackedInfo.batteryVoltage & 0x7F);
-        payload[30] = (ackedRssiVal << 1) | ((ackingRssiVal >> 6) & 0x01);
-        payload[31] = ((ackingRssiVal & 0x3F) << 2) | ((idleRssiVal >> 4) & 0x03);
-        payload[32] = ((idleRssiVal & 0x0F) << 4) | ((ackedInfo.prevLqi >> 4) & 0x0F);
-        payload[33] = ((ackedInfo.prevLqi & 0x0F) << 4) | (ackedInfo.txPowerLevel & 0x0F);
+        payload[15] = (ackedInfo.hasBattery ? 0x80 : 0) | (ackedInfo.batteryVoltage & 0x7F);
+        payload[16] = (ackedRssiVal << 1) | ((ackingRssiVal >> 6) & 0x01);
+        payload[17] = ((ackingRssiVal & 0x3F) << 2) | ((idleRssiVal >> 4) & 0x03);
+        payload[18] = ((idleRssiVal & 0x0F) << 4) | ((ackedInfo.prevLqi >> 4) & 0x0F);
+        payload[19] = ((ackedInfo.prevLqi & 0x0F) << 4) | (ackedInfo.txPowerLevel & 0x0F);
 
         // --- Location Blob (17 bytes) ---
         const qlat = BigInt(Math.round((ackedInfo.latitude + 90) / 180 * (Math.pow(2, 24) - 1)));
@@ -245,7 +249,7 @@ export const buildAckPacket = (
         packed = (packed << 8n) | qprec;
 
         for (let i = 16; i >= 0; i--) {
-            payload[34 + i] = Number(packed & 0xFFn);
+            payload[20 + i] = Number(packed & 0xFFn);
             packed >>= 8n;
         }
     }
@@ -256,25 +260,25 @@ export const buildAckPacket = (
 
     const data = new Uint8Array(96);
     data.set(header, 0);
-    data.set(payload, 26);
+    data.set(payload, 24);
     data.set(signature, 80);
 
     return { data, header, payload, signature };
 };
 
 export const parseAckPayload = (payload: Uint8Array): AckedPacketInfo => {
-    const nonce = payload.slice(0, 12);
-    const signature = payload.slice(12, 28);
+    const packetId = payload.slice(0, 6);
+    const innerMac = payload.slice(6, 14);
 
-    const bitfields = payload[28];
+    const bitfields = payload[14];
     const fragmentIndex = (bitfields >> 4) & 0x0F;
     const lastFragment = ((bitfields >> 3) & 0x01) === 1;
     const status = (bitfields >> 1) & 0x03 as AckStatus;
     const telemetryBit = (bitfields & 0x01) === 1;
 
     let info: AckedPacketInfo = {
-        nonce,
-        signature,
+        packetId,
+        innerMac,
         fragmentIndex,
         lastFragment,
         status,
@@ -299,21 +303,21 @@ export const parseAckPayload = (payload: Uint8Array): AckedPacketInfo => {
     };
 
     if (telemetryBit) {
-        const byte29 = payload[29];
-        info.hasBattery = (byte29 & 0x80) !== 0;
-        info.batteryVoltage = byte29 & 0x7F;
+        const byte15 = payload[15];
+        info.hasBattery = (byte15 & 0x80) !== 0;
+        info.batteryVoltage = byte15 & 0x7F;
 
-        const byte30 = payload[30];
-        const byte31 = payload[31];
-        const byte32 = payload[32];
-        const byte33 = payload[33];
+        const byte16 = payload[16];
+        const byte17 = payload[17];
+        const byte18 = payload[18];
+        const byte19 = payload[19];
 
-        const ackedRssiVal = (byte30 >> 1) & 0x7F;
-        const ackingRssiVal = ((byte30 & 0x01) << 6) | ((byte31 >> 2) & 0x3F);
-        const idleRssiVal = ((byte31 & 0x03) << 4) | ((byte32 >> 4) & 0x0F);
+        const ackedRssiVal = (byte16 >> 1) & 0x7F;
+        const ackingRssiVal = ((byte16 & 0x01) << 6) | ((byte17 >> 2) & 0x3F);
+        const idleRssiVal = ((byte17 & 0x03) << 4) | ((byte18 >> 4) & 0x0F);
 
-        info.prevLqi = ((byte32 & 0x0F) << 4) | ((byte33 >> 4) & 0x0F);
-        info.txPowerLevel = byte33 & 0x0F;
+        info.prevLqi = ((byte18 & 0x0F) << 4) | ((byte19 >> 4) & 0x0F);
+        info.txPowerLevel = byte19 & 0x0F;
 
         const fromRssiVal = (val: number) => val === 127 ? 7 : val - 120;
         const fromIdleRssiVal = (val: number) => val === 63 ? 7 : val - 120;
@@ -325,7 +329,7 @@ export const parseAckPayload = (payload: Uint8Array): AckedPacketInfo => {
         // Location
         let packed = 0n;
         for (let i = 0; i < 17; i++) {
-            packed = (packed << 8n) | BigInt(payload[34 + i]);
+            packed = (packed << 8n) | BigInt(payload[20 + i]);
         }
 
         const qprec = Number(packed & 0xFFn); packed >>= 8n;
@@ -353,7 +357,7 @@ export const parseAckPayload = (payload: Uint8Array): AckedPacketInfo => {
 };
 
 export const buildTelemetryPayload = (telemetryInfo: TelemetryPacketInfo): Uint8Array => {
-    const payload = new Uint8Array(54);
+    const payload = new Uint8Array(56);
     const view = new DataView(payload.buffer);
     let offset = 0;
 
@@ -382,19 +386,19 @@ export const buildTelemetryPayload = (telemetryInfo: TelemetryPacketInfo): Uint8
     offset += 1;
 
     if (telemetryInfo.flags.isCustomData) {
-        const customBytes = textToBytes(telemetryInfo.customData, 54 - offset);
+        const customBytes = textToBytes(telemetryInfo.customData, 56 - offset);
         payload.set(customBytes, offset);
         return payload; // Custom data takes the rest of the payload
     }
 
     // Conditional fields in flag order
-    if (telemetryInfo.flags.hasBattery && offset + 4 <= 54) {
+    if (telemetryInfo.flags.hasBattery && offset + 4 <= 56) {
         view.setUint16(offset, telemetryInfo.batteryVoltage, false);
         view.setInt16(offset + 2, telemetryInfo.batteryCurrent, false);
         offset += 4;
     }
 
-    if (telemetryInfo.flags.hasLocation && offset + 17 <= 54) {
+    if (telemetryInfo.flags.hasLocation && offset + 17 <= 56) {
         const loc = telemetryInfo.location;
         const qlat = BigInt(Math.round((loc.latitude + 90) / 180 * (Math.pow(2, 24) - 1)));
         const qlon = BigInt(Math.round((loc.longitude + 180) / 360 * (Math.pow(2, 24) - 1)));
@@ -424,29 +428,29 @@ export const buildTelemetryPayload = (telemetryInfo: TelemetryPacketInfo): Uint8
         offset += 17;
     }
 
-    if (telemetryInfo.flags.hasHygrometer && offset + 4 <= 54) {
+    if (telemetryInfo.flags.hasHygrometer && offset + 4 <= 56) {
         view.setUint16(offset, telemetryInfo.humidity, false);
         view.setInt16(offset + 2, telemetryInfo.temperature, false);
         offset += 4;
     }
 
-    if (telemetryInfo.flags.hasGasSensor && offset + 4 <= 54) {
+    if (telemetryInfo.flags.hasGasSensor && offset + 4 <= 56) {
         view.setUint16(offset, telemetryInfo.gasPpm, false);
         view.setUint16(offset + 2, telemetryInfo.pressureHpa, false);
         offset += 4;
     }
 
-    if (telemetryInfo.flags.hasLuxSensor && offset + 2 <= 54) {
+    if (telemetryInfo.flags.hasLuxSensor && offset + 2 <= 56) {
         view.setUint16(offset, telemetryInfo.lux, false);
         offset += 2;
     }
 
-    if (telemetryInfo.flags.hasUvSensor && offset + 2 <= 54) {
+    if (telemetryInfo.flags.hasUvSensor && offset + 2 <= 56) {
         view.setUint16(offset, telemetryInfo.uvIndex, false);
         offset += 2;
     }
 
-    if (telemetryInfo.flags.hasMovementSensor && offset + 2 <= 54) {
+    if (telemetryInfo.flags.hasMovementSensor && offset + 2 <= 56) {
         view.setUint16(offset, telemetryInfo.movement, false);
         offset += 2;
     }
@@ -510,13 +514,13 @@ export const parseTelemetryPayload = (payload: Uint8Array): TelemetryPacketInfo 
         return info;
     }
 
-    if (flags.hasBattery && offset + 4 <= 54) {
+    if (flags.hasBattery && offset + 4 <= 56) {
         info.batteryVoltage = view.getUint16(offset, false);
         info.batteryCurrent = view.getInt16(offset + 2, false);
         offset += 4;
     }
 
-    if (flags.hasLocation && offset + 17 <= 54) {
+    if (flags.hasLocation && offset + 17 <= 56) {
         let packed = 0n;
         for (let i = 0; i < 17; i++) {
             packed = (packed << 8n) | BigInt(payload[offset + i]);
@@ -544,29 +548,29 @@ export const parseTelemetryPayload = (payload: Uint8Array): TelemetryPacketInfo 
         offset += 17;
     }
 
-    if (flags.hasHygrometer && offset + 4 <= 54) {
+    if (flags.hasHygrometer && offset + 4 <= 56) {
         info.humidity = view.getUint16(offset, false);
         info.temperature = view.getInt16(offset + 2, false);
         offset += 4;
     }
 
-    if (flags.hasGasSensor && offset + 4 <= 54) {
+    if (flags.hasGasSensor && offset + 4 <= 56) {
         info.gasPpm = view.getUint16(offset, false);
         info.pressureHpa = view.getUint16(offset + 2, false);
         offset += 4;
     }
 
-    if (flags.hasLuxSensor && offset + 2 <= 54) {
+    if (flags.hasLuxSensor && offset + 2 <= 56) {
         info.lux = view.getUint16(offset, false);
         offset += 2;
     }
 
-    if (flags.hasUvSensor && offset + 2 <= 54) {
+    if (flags.hasUvSensor && offset + 2 <= 56) {
         info.uvIndex = view.getUint16(offset, false);
         offset += 2;
     }
 
-    if (flags.hasMovementSensor && offset + 2 <= 54) {
+    if (flags.hasMovementSensor && offset + 2 <= 56) {
         info.movement = view.getUint16(offset, false);
         offset += 2;
     }
