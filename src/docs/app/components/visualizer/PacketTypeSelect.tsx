@@ -2,42 +2,36 @@ import React, { useState, useEffect } from 'react';
 import type { PacketHeaderConfig } from './types';
 import { PacketType, AddressingType } from './types';
 import { hexToBytes } from './hermesProtocol';
-import AckIcon from './icons/AckIcon';
-import KeyIcon from './icons/KeyIcon';
-import MoreIcon from './icons/MoreIcon';
-import SearchIcon from './icons/SearchIcon';
-import PingIcon from './icons/PingIcon';
-import MessageIcon from './icons/MessageIcon';
-import TelemetryIcon from './icons/TelemetryIcon';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { CheckCircle, Navigation, MessageSquare, Activity, Search, KeyRound, MoreHorizontal, ChevronDown } from 'lucide-react';
 
 const OTHER_PRESET_TYPE = -1;
 
 const packetTypePresets = [
     {
         label: 'ACK',
-        icon: AckIcon,
+        icon: CheckCircle,
         config: { type: PacketType.ACK, wantAck: false, addressing: AddressingType.UNICAST, ttl: 7, lastFragment: true, fragmentIndex: 0 }
     },
     {
         label: 'Ping',
-        icon: PingIcon,
+        icon: Navigation,
         config: { type: PacketType.PING, wantAck: true, addressing: AddressingType.UNICAST, ttl: 7, lastFragment: true, fragmentIndex: 0 }
     },
     {
         label: 'Message',
-        icon: MessageIcon,
+        icon: MessageSquare,
         config: { type: PacketType.MESSAGE, wantAck: true, addressing: AddressingType.UNICAST, ttl: 7, lastFragment: true, fragmentIndex: 0 }
     },
     {
         label: 'Telemetry',
-        icon: TelemetryIcon,
+        icon: Activity,
         config: { type: PacketType.TELEMETRY, wantAck: false, addressing: AddressingType.UNICAST, ttl: 7, lastFragment: true, fragmentIndex: 0 }
     },
     {
         label: 'Discovery',
-        icon: SearchIcon,
+        icon: Search,
         config: {
             type: PacketType.DISCOVERY,
             wantAck: false,
@@ -50,14 +44,14 @@ const packetTypePresets = [
     },
     {
         label: 'Key Ratchet',
-        icon: KeyIcon,
+        icon: KeyRound,
         config: { type: PacketType.KEY_RATCHET, wantAck: true, addressing: AddressingType.UNICAST, ttl: 7, lastFragment: true, fragmentIndex: 0 }
     },
 ];
 
 const otherPreset = {
     label: 'Other',
-    icon: MoreIcon,
+    icon: MoreHorizontal,
     config: { type: OTHER_PRESET_TYPE }
 };
 
@@ -105,44 +99,44 @@ const PacketTypeSelect: React.FC<PacketTypeSelectProps> = ({ config, setConfig }
     };
 
     const selectedOption = isOtherType ? otherPreset : currentPreset;
-    const Icon = selectedOption?.icon || MoreIcon;
+    const SelectedIcon = selectedOption?.icon || MoreHorizontal;
     const typeName = isOtherType ? `(${config.type})` : `(${selectedOption?.config.type})`;
 
     return (
         <div className="relative">
             {isEditing ? (
-                <div className="flex items-center w-full bg-black border border-neutral-800 rounded-md shadow-sm focus-within:ring-1 focus-within:ring-neutral-400 focus-within:border-neutral-400 transition">
+                <div className="flex items-center w-full bg-background border border-border rounded-md shadow-sm focus-within:ring-1 focus-within:ring-ring transition">
                     <Input
                         type="number"
                         min="0"
                         max="31"
                         value={config.type}
                         onChange={handleOtherInputChange}
-                        className="flex-grow w-full bg-transparent border-none py-2 px-3 text-sm text-neutral-200 focus-visible:ring-0 focus-visible:ring-offset-0 font-mono text-center"
+                        className="flex-grow w-full bg-transparent border-none py-2 px-3 text-sm text-foreground focus-visible:ring-0 focus-visible:ring-offset-0 font-mono text-center"
                         autoFocus
                         aria-label="Custom packet type"
                     />
                     <button
                         type="button"
                         onClick={handleBackToPicker}
-                        className="flex-shrink-0 p-2 h-full text-neutral-400 border-l border-neutral-800 hover:bg-neutral-800 hover:text-white"
+                        className="flex-shrink-0 p-2 h-full text-muted-foreground border-l border-border hover:bg-accent hover:text-accent-foreground"
                         aria-label="Open packet type picker"
                     >
-                        <svg className="w-4 h-4 mt-0.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                        <ChevronDown className="w-4 h-4" />
                     </button>
                 </div>
             ) : (
                 <Select value={selectedOption?.config.type.toString()} onValueChange={handleSelect}>
-                    <SelectTrigger className="w-full bg-black border-neutral-800 text-neutral-200">
+                    <SelectTrigger className="w-full bg-background border-border text-foreground">
                         <div className="flex flex-row items-center justify-start gap-2 h-full">
-                            <Icon className="w-4 h-4 text-neutral-500" />
-                            <span className="truncate flex-grow text-left flex items-center gap-1">
+                            <SelectedIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                            <span className="truncate flex-grow text-left flex items-center gap-1.5 text-sm">
                                 {selectedOption?.label}
-                                <span className="text-neutral-500 text-xs">{typeName}</span>
+                                <span className="text-muted-foreground/60 text-xs font-mono">{typeName}</span>
                             </span>
                         </div>
                     </SelectTrigger>
-                    <SelectContent className="bg-neutral-900 border-neutral-800 text-neutral-200">
+                    <SelectContent position="popper" className="bg-popover border-border text-popover-foreground">
                         {[...packetTypePresets, otherPreset].map((option) => {
                             const OptionIcon = option.icon;
                             const optionTypeName = option.config.type !== OTHER_PRESET_TYPE ? `(${option.config.type})` : '';
@@ -150,12 +144,12 @@ const PacketTypeSelect: React.FC<PacketTypeSelectProps> = ({ config, setConfig }
                                 <SelectItem
                                     key={option.label}
                                     value={option.config.type.toString()}
-                                    className="focus:bg-neutral-800 focus:text-white cursor-pointer data-[state=checked]:bg-neutral-800 text-neutral-300"
+                                    className="cursor-pointer"
                                 >
-                                    <div className="flex items-center">
-                                        <OptionIcon className="w-4 h-4 mr-2 flex-shrink-0 text-neutral-500" />
+                                    <div className="flex items-center gap-2">
+                                        <OptionIcon className="w-3.5 h-3.5 text-muted-foreground" />
                                         <span>{option.label}</span>
-                                        {optionTypeName && <span className="text-neutral-500 text-xs ml-1">{optionTypeName}</span>}
+                                        {optionTypeName && <span className="text-muted-foreground/60 text-xs font-mono">{optionTypeName}</span>}
                                     </div>
                                 </SelectItem>
                             );

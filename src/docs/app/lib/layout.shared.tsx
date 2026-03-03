@@ -25,6 +25,11 @@ export function baseOptions(): BaseLayoutProps {
         active: 'nested-url',
       },
       {
+        text: 'Packet Builder',
+        url: '/packet-builder',
+        active: 'nested-url',
+      },
+      {
         text: 'PDF Specification',
         url: '/hermes-protocol-spec.pdf',
         icon: <Printer />,

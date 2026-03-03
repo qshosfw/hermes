@@ -20,7 +20,7 @@ const Tooltip: React.FC<TooltipProps> = ({ content, children, className, delayDu
           {children}
         </span>
       </TooltipTrigger>
-      <TooltipContent className="z-[9999] px-3 py-2 text-xs font-medium text-neutral-200 bg-neutral-950 border border-neutral-800 rounded-lg shadow-lg w-max max-w-[280px] leading-relaxed">
+      <TooltipContent side="top" sideOffset={8} avoidCollisions collisionPadding={8} className="z-[9999] px-3 py-1.5 text-[11px] font-medium text-popover-foreground bg-popover border border-border rounded-lg shadow-xl w-max max-w-[280px] leading-relaxed">
         {content}
       </TooltipContent>
     </ShadcnTooltip>

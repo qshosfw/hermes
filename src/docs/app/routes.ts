@@ -4,6 +4,7 @@ export default [
   index('routes/home.tsx'),
   route('docs/*', 'routes/docs.tsx'),
   route('simulator', 'routes/simulator.tsx'),
+  route('packet-builder', 'routes/packet-builder.tsx'),
   route('api/search', 'routes/search.ts'),
   route('print', 'routes/print.tsx'),
 

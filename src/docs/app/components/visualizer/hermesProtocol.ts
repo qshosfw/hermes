@@ -1,6 +1,7 @@
 import type { PacketHeaderConfig, AckedPacketInfo, TelemetryPacketInfo } from './types';
 import { PacketType, AckStatus } from './types';
 import { Poly1305 } from "@stablelib/poly1305";
+import { chacha20Encrypt, chacha20Keystream } from './chacha20';
 
 export const bytesToHex = (bytes: Uint8Array): string =>
     Array.from(bytes).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
@@ -804,4 +805,162 @@ export const whiten = (data: Uint8Array, syncWord: Uint8Array, pn15Sequence: Uin
         whitened[i] = data[i] ^ syncByte ^ pn15Sequence[i];
     }
     return whitened;
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  FULL PROTOCOL PIPELINE — Per RFC Security §4: Encryption Pipeline
+// ══════════════════════════════════════════════════════════════════════════════
+
+/** All intermediate snapshots from the full encryption pipeline */
+export interface PipelineResult {
+    // Layer 0: Cleartext Transport Frame
+    cleartext: Uint8Array;          // 96 bytes: header(24) + payload(56) + mac(16)
+    header: Uint8Array;             // 24 bytes
+    payload: Uint8Array;            // 56 bytes (plaintext)
+    signature: Uint8Array;          // 16 bytes (Poly1305 MAC)
+    // Layer 1: Inner AEAD (ChaCha20 encrypts payload region)
+    innerAead: Uint8Array;          // 96 bytes: header(24) + encrypted_payload(56) + mac(16)
+    // Layer 2: Outer Shroud (mesh obfuscation via K_mesh keystream)
+    outerShroud: Uint8Array;        // 96 bytes: fully obfuscated
+    // Layer 3: PN15 Whitened
+    whitened: Uint8Array;           // 96 bytes: spectrally flat
+    // Layer 4: Physical Frame (128 bytes: preamble + sync + whitened + FEC pad)
+    physicalFrame: Uint8Array;      // 128 bytes
+}
+
+/**
+ * Stage 1: Inner AEAD Encryption
+ * Encrypts the 56-byte payload region using ChaCha20 with the shared secret as key.
+ * The nonce is derived from the packet ID + hop nonce for uniqueness.
+ */
+const innerAeadEncrypt = (
+    cleartext: Uint8Array,
+    sharedSecret: Uint8Array,
+): Uint8Array => {
+    const result = new Uint8Array(cleartext);
+
+    // Derive a 12-byte nonce from packet ID (bytes 2-7) + hop nonce (bytes 20-23) + 2 padding bytes
+    const nonce = new Uint8Array(12);
+    nonce.set(cleartext.subarray(2, 8), 0);   // 6 bytes: Packet ID
+    nonce.set(cleartext.subarray(20, 24), 6); // 4 bytes: Hop Nonce
+    // Last 2 bytes stay 0x00 (padding)
+
+    // Encrypt the payload region (bytes 24-79) with ChaCha20
+    const plaintextPayload = cleartext.subarray(24, 80);
+    const encrypted = chacha20Encrypt(sharedSecret, nonce, plaintextPayload);
+    result.set(encrypted, 24);
+
+    return result;
+};
+
+/**
+ * Stage 2: Outer Shroud (Mesh Obfuscation)
+ * XOR the header (excluding hop nonce at 20-23) and encrypted payload+MAC
+ * with a keystream derived from K_mesh and the hop nonce.
+ */
+const outerShroudApply = (
+    innerAead: Uint8Array,
+    sharedSecret: Uint8Array,
+): Uint8Array => {
+    const result = new Uint8Array(innerAead);
+
+    // Derive outer keystream nonce from hop nonce (bytes 20-23) padded to 12 bytes
+    const outerNonce = new Uint8Array(12);
+    outerNonce.set(innerAead.subarray(20, 24), 0);
+
+    // Generate 96 bytes of keystream
+    const keystream = chacha20Keystream(sharedSecret, outerNonce, 96);
+
+    // XOR everything EXCEPT the hop nonce (bytes 20-23) — routers need to read it
+    for (let i = 0; i < 96; i++) {
+        if (i >= 20 && i < 24) continue; // Skip hop nonce
+        result[i] = innerAead[i] ^ keystream[i];
+    }
+
+    return result;
+};
+
+/**
+ * Stage 3 + 4: PN15 Whitening + Physical Frame Assembly
+ * - Whiten the 96 bytes with PN15 LFSR XOR
+ * - Prepend: 16-byte preamble pattern + 4-byte sync word + 12 bytes FEC/RS padding
+ * - Result: 128 bytes total physical frame
+ */
+const buildPhysicalFrame = (
+    obfuscated: Uint8Array,
+    syncWord: Uint8Array,
+): Uint8Array => {
+    // PN15 Whitening
+    const pn15 = generatePn15Sequence(96);
+    const whitened = whiten(obfuscated, syncWord, pn15);
+
+    // Build 128-byte physical frame:
+    // [0-15]   Preamble (16 bytes: alternating 0xAA/0x55 pattern based on sync word MSB)
+    // [16-19]  Sync Word (4 bytes)
+    // [20-115] Whitened Data (96 bytes)
+    // [116-127] FEC/RS padding (12 bytes, filled with PN15 continuation)
+    const frame = new Uint8Array(128);
+
+    // Preamble: 16 bytes of alternating pattern
+    const preambleByte = (syncWord[0] & 0x80) ? 0x55 : 0xAA;
+    for (let i = 0; i < 16; i++) {
+        frame[i] = preambleByte;
+    }
+
+    // Sync Word
+    frame.set(syncWord.subarray(0, 4), 16);
+
+    // Whitened packet data
+    frame.set(whitened, 20);
+
+    // FEC/RS parity placeholder (PN15 continuation for spectral flatness)
+    const fecPad = generatePn15Sequence(12, 0x1337);
+    frame.set(fecPad, 116);
+
+    return { whitened, frame } as any; // We return both for the pipeline
+};
+
+/**
+ * Full Pipeline Orchestrator
+ * Runs all 4 stages and returns snapshots of every layer.
+ */
+export const buildFullPipeline = (
+    config: PacketHeaderConfig,
+    payload: Uint8Array,
+    sharedSecret: Uint8Array,
+    syncWord: Uint8Array,
+): PipelineResult => {
+    // --- Stage 0: Build cleartext transport frame ---
+    const rawResult = buildRawPacket(config, payload, sharedSecret);
+    const cleartext = rawResult.data;
+
+    // --- Stage 1: Inner AEAD (ChaCha20 on payload) ---
+    const innerAead = innerAeadEncrypt(cleartext, sharedSecret);
+
+    // --- Stage 2: Outer Shroud (mesh obfuscation) ---
+    const outerShroud = outerShroudApply(innerAead, sharedSecret);
+
+    // --- Stage 3 & 4: Whitening + Physical Frame ---
+    const pn15 = generatePn15Sequence(96);
+    const whitened = whiten(outerShroud, syncWord, pn15);
+
+    // Build 128-byte physical frame
+    const frame = new Uint8Array(128);
+    const preambleByte = (syncWord[0] & 0x80) ? 0x55 : 0xAA;
+    for (let i = 0; i < 16; i++) frame[i] = preambleByte;
+    frame.set(syncWord.subarray(0, 4), 16);
+    frame.set(whitened, 20);
+    const fecPad = generatePn15Sequence(12, 0x1337);
+    frame.set(fecPad, 116);
+
+    return {
+        cleartext,
+        header: rawResult.header,
+        payload: rawResult.payload,
+        signature: rawResult.signature,
+        innerAead,
+        outerShroud,
+        whitened,
+        physicalFrame: frame,
+    };
 };

@@ -42,10 +42,10 @@ interface PacketBuilderProps {
 }
 
 const Label: React.FC<{ htmlFor: string, children: React.ReactNode, tooltip: string }> = ({ htmlFor, children, tooltip }) => (
-    <label htmlFor={htmlFor} className="flex items-center space-x-1.5 text-[10px] font-bold text-neutral-500 mb-1 uppercase tracking-widest whitespace-nowrap">
+    <label htmlFor={htmlFor} className="flex items-center space-x-1.5 text-[10px] font-bold text-muted-foreground mb-1 uppercase tracking-widest whitespace-nowrap">
         <span>{children}</span>
         <Tooltip content={tooltip}>
-            <InfoIcon className="w-3 h-3 text-neutral-600 hover:text-neutral-300 transition-colors cursor-help" />
+            <InfoIcon className="w-3 h-3 text-muted-foreground/60 hover:text-foreground transition-colors cursor-help" />
         </Tooltip>
     </label>
 );
@@ -148,7 +148,7 @@ const PacketBuilder: React.FC<PacketBuilderProps> = ({
         setConfig(prev => ({ ...prev, ...updates }));
     };
 
-    const baseInputClasses = "bg-black/40 border-neutral-800 text-neutral-300 placeholder:text-neutral-600 focus-visible:ring-sky-500/50 font-mono";
+    const baseInputClasses = "bg-muted/40 border-border text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-ring font-mono";
 
     const addressingOptions: CustomSelectOption[] = [
         { value: AddressingType.UNICAST, label: 'Unicast', icon: UserIcon },
@@ -158,11 +158,11 @@ const PacketBuilder: React.FC<PacketBuilderProps> = ({
     ];
 
     const isHovered = (start: number, end: number) => hoveredByte !== null && hoveredByte !== undefined && hoveredByte >= start && hoveredByte <= end;
-    const highlightClass = 'ring-1 ring-sky-400 bg-sky-900/20 rounded z-10';
+    const highlightClass = 'ring-1 ring-ring bg-accent/30 rounded z-10';
 
     const PanelSection: React.FC<{ title: string, icon: React.ReactNode, children: React.ReactNode, h?: boolean, span?: number }> = ({ title, icon, children, h, span }) => (
-        <div className={`flex flex-col bg-neutral-900/60 backdrop-blur-md rounded-xl border border-neutral-800/80 overflow-hidden shadow-md col-span-${span || 1}`}>
-            <h3 className="px-3 py-2 bg-black/40 border-b border-neutral-800/80 text-[11px] font-bold uppercase tracking-widest text-neutral-300 flex items-center gap-2">
+        <div className={`flex flex-col bg-card/60 backdrop-blur-md rounded-xl border border-border overflow-hidden shadow-md col-span-${span || 1}`}>
+            <h3 className="px-3 py-2.5 bg-muted/50 border-b border-border text-[11px] font-bold uppercase tracking-widest text-card-foreground flex items-center gap-2">
                 {icon}
                 {title}
             </h3>
@@ -173,7 +173,7 @@ const PacketBuilder: React.FC<PacketBuilderProps> = ({
     );
 
     return (
-        <div className="w-full flex flex-col gap-4 font-sans max-w-[1200px] mx-auto p-1">
+        <div className="w-full flex flex-col gap-4 font-sans max-w-[1200px] mx-auto p-4">
 
             {/* Top Row: PHY & Cryptography */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -203,10 +203,10 @@ const PacketBuilder: React.FC<PacketBuilderProps> = ({
                         <div className={`p-2 -m-2 transition-all ${isHovered(2, 7) ? highlightClass : ''}`}>
                             <Label htmlFor="packet-id" tooltip="6-byte unique identifier for deduplication.">Static Packet ID</Label>
                             <div className="flex items-center gap-2">
-                                <div className="flex-grow font-mono text-xs text-neutral-400 max-w-[280px] truncate bg-black/40 p-2 rounded border border-neutral-800">
+                                <div className="flex-grow font-mono text-xs text-muted-foreground max-w-[280px] truncate bg-muted/40 p-2 rounded border border-border">
                                     {bytesToHex(config.packetId)}
                                 </div>
-                                <button onClick={() => setConfig(prev => ({ ...prev, packetId: generateRandomBytes(6) }))} className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-[10px] font-bold uppercase rounded text-neutral-300 transition-colors">
+                                <button onClick={() => setConfig(prev => ({ ...prev, packetId: generateRandomBytes(6) }))} className="px-3 py-1.5 bg-secondary hover:bg-secondary/80 text-[10px] font-bold uppercase rounded text-secondary-foreground transition-colors border border-border">
                                     Refresh
                                 </button>
                             </div>
@@ -215,10 +215,10 @@ const PacketBuilder: React.FC<PacketBuilderProps> = ({
                         <div className={`p-2 -m-2 mt-2 transition-all ${isHovered(20, 23) ? highlightClass : ''}`}>
                             <Label htmlFor="hop-nonce" tooltip="4-byte nonce for hop-by-hop obfuscation.">Dynamic Hop Nonce</Label>
                             <div className="flex items-center gap-2">
-                                <div className="flex-grow font-mono text-xs text-neutral-400 max-w-[280px] truncate bg-black/40 p-2 rounded border border-neutral-800">
+                                <div className="flex-grow font-mono text-xs text-muted-foreground max-w-[280px] truncate bg-muted/40 p-2 rounded border border-border">
                                     {bytesToHex(config.hopNonce)}
                                 </div>
-                                <button onClick={() => setConfig(prev => ({ ...prev, hopNonce: generateRandomBytes(4) }))} className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-[10px] font-bold uppercase rounded text-neutral-300 transition-colors">
+                                <button onClick={() => setConfig(prev => ({ ...prev, hopNonce: generateRandomBytes(4) }))} className="px-3 py-1.5 bg-secondary hover:bg-secondary/80 text-[10px] font-bold uppercase rounded text-secondary-foreground transition-colors border border-border">
                                     Refresh
                                 </button>
                             </div>
@@ -236,9 +236,9 @@ const PacketBuilder: React.FC<PacketBuilderProps> = ({
                                         const raw = e.target.value.toUpperCase(); setSecretRaw(raw);
                                         const cleanHex = raw.replace(/\s/g, ''); if (/^[0-9A-F]*$/.test(cleanHex) && cleanHex.length <= 64) setSharedSecret(hexToBytes(cleanHex, 32));
                                     }}
-                                    className={`${baseInputClasses} text-rose-200/80`}
+                                    className={`${baseInputClasses} text-rose-500 dark:text-rose-200/80`}
                                 />
-                                <button onClick={() => setSharedSecret(generateRandomBytes(32))} className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded transition-colors border border-rose-500/20">
+                                <button onClick={() => setSharedSecret(generateRandomBytes(32))} className="p-1.5 bg-destructive/10 hover:bg-destructive/20 text-destructive rounded transition-colors border border-destructive/20">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><path d="M16 16h5v5" /></svg>
                                 </button>
                             </div>
@@ -246,7 +246,7 @@ const PacketBuilder: React.FC<PacketBuilderProps> = ({
 
                         <div className={`p-2 -m-2 opacity-80 transition-all ${isHovered(80, 95) ? highlightClass : ''}`}>
                             <Label htmlFor="signature" tooltip="16-byte Poly1305 MAC. Generated automatically to securely validate this exact layout's hash against the key.">Poly1305 MAC Hash (Out)</Label>
-                            <p className="font-mono text-[11px] p-2 bg-transparent rounded border border-neutral-800 text-neutral-500">{bytesToHex(signature)}</p>
+                            <p className="font-mono text-[11px] p-2 bg-transparent rounded border border-border text-muted-foreground">{bytesToHex(signature)}</p>
                         </div>
                     </div>
                 </PanelSection>
@@ -267,18 +267,18 @@ const PacketBuilder: React.FC<PacketBuilderProps> = ({
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 bg-black/20 p-3 rounded-lg border border-neutral-800/50">
+                        <div className="grid grid-cols-2 gap-4 bg-muted/20 p-3 rounded-lg border border-border/50">
                             <div>
                                 <div className="flex justify-between items-center mb-1">
                                     <Label htmlFor="ttl" tooltip="Time To Live Mesh Depletion count.">TTL limit</Label>
-                                    <span className="text-xs font-mono text-sky-400">{config.ttl}</span>
+                                    <span className="text-xs font-mono text-primary">{config.ttl}</span>
                                 </div>
                                 <Slider id="ttl" min={0} max={15} value={config.ttl} onChange={(e) => setConfig(prev => ({ ...prev, ttl: parseInt(e.target.value) }))} disabled={config.addressing === AddressingType.BROADCAST} />
                             </div>
                             <div>
                                 <div className="flex justify-between items-center mb-1">
                                     <Label htmlFor="fragment-index" tooltip="Index for large fragmented payloads.">Fragment #</Label>
-                                    <span className="text-xs font-mono text-sky-400">{config.fragmentIndex}</span>
+                                    <span className="text-xs font-mono text-primary">{config.fragmentIndex}</span>
                                 </div>
                                 <Slider id="fragment-index" min={0} max={15} value={config.fragmentIndex} onChange={handleFragmentIndexChange} />
                             </div>
@@ -286,12 +286,12 @@ const PacketBuilder: React.FC<PacketBuilderProps> = ({
 
                         <div className="flex gap-4 items-center pl-1">
                             <label className="flex items-center gap-2 cursor-pointer group">
-                                <Checkbox id="want-ack" checked={config.wantAck} onCheckedChange={(c) => setConfig(prev => ({ ...prev, wantAck: !!c }))} disabled={config.addressing === AddressingType.BROADCAST} className="border-neutral-700 bg-neutral-900 border-2 data-[state=checked]:bg-sky-500 data-[state=checked]:border-sky-500" />
-                                <span className={`text-xs font-bold text-neutral-400 uppercase tracking-wider group-hover:text-neutral-300 transition-colors ${config.addressing === AddressingType.BROADCAST ? 'opacity-50' : ''}`}>Require ACK</span>
+                                <Checkbox id="want-ack" checked={config.wantAck} onCheckedChange={(c) => setConfig(prev => ({ ...prev, wantAck: !!c }))} disabled={config.addressing === AddressingType.BROADCAST} className="border-border bg-background border-2 data-[state=checked]:bg-primary data-[state=checked]:border-primary" />
+                                <span className={`text-xs font-bold text-muted-foreground uppercase tracking-wider group-hover:text-foreground transition-colors ${config.addressing === AddressingType.BROADCAST ? 'opacity-50' : ''}`}>Require ACK</span>
                             </label>
                             <label className="flex items-center gap-2 cursor-pointer group">
-                                <Checkbox id="last-fragment" checked={config.lastFragment} onCheckedChange={(c) => setConfig(prev => ({ ...prev, lastFragment: !!c }))} disabled={config.fragmentIndex === 15} className="border-neutral-700 bg-neutral-900 border-2 data-[state=checked]:bg-sky-500 data-[state=checked]:border-sky-500" />
-                                <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider group-hover:text-neutral-300 transition-colors">Final Segment</span>
+                                <Checkbox id="last-fragment" checked={config.lastFragment} onCheckedChange={(c) => setConfig(prev => ({ ...prev, lastFragment: !!c }))} disabled={config.fragmentIndex === 15} className="border-border bg-background border-2 data-[state=checked]:bg-primary data-[state=checked]:border-primary" />
+                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider group-hover:text-foreground transition-colors">Final Segment</span>
                             </label>
                         </div>
                     </div>
@@ -317,7 +317,7 @@ const PacketBuilder: React.FC<PacketBuilderProps> = ({
                             />
                         </div>
 
-                        <div className="text-[10px] text-neutral-500 p-3 bg-neutral-950/50 rounded border border-neutral-800 border-dashed">
+                        <div className="text-[10px] text-muted-foreground p-3 bg-muted/30 rounded border border-border border-dashed">
                             The destination address designates the literal physical target or the subnet ID block. In sealed-sender transmission rules, Source may be encrypted.
                         </div>
                     </div>
@@ -339,19 +339,19 @@ const PacketBuilder: React.FC<PacketBuilderProps> = ({
                                     id="payload-text"
                                     value={payloadText}
                                     onChange={(e) => setPayloadText(e.target.value)}
-                                    className={`${baseInputClasses} flex-1 resize-none bg-black/60 font-mono text-sm p-4 w-full block focus-visible:outline-none transition-all rounded-md focus-visible:border-sky-500/50`}
-                                    maxLength={300} // Loose limit, internal logic counts bytes
+                                    className={`${baseInputClasses} flex-1 resize-none bg-muted/30 font-mono text-sm p-4 w-full block focus-visible:outline-none transition-all rounded-md focus-visible:border-ring`}
+                                    maxLength={300}
                                 ></textarea>
                                 <div className="flex justify-between items-center mt-2 px-1">
                                     <div className="flex flex-col">
-                                        <span className="text-[10px] uppercase font-bold text-neutral-600 tracking-widest">Text Encoding</span>
-                                        <span className="text-[9px] text-neutral-500 italic">Auto-switching GSM-7 / UTF-8</span>
+                                        <span className="text-[10px] uppercase font-bold text-muted-foreground/60 tracking-widest">Text Encoding</span>
+                                        <span className="text-[9px] text-muted-foreground/50 italic">Auto-switching GSM-7 / UTF-8</span>
                                     </div>
                                     <div className="flex flex-col items-end">
                                         <span className={`text-[10px] font-mono font-bold ${new TextEncoder().encode(payloadText).length > 56 ? 'text-rose-500' : 'text-emerald-500'}`}>
                                             {new TextEncoder().encode(payloadText).length}/56 Bytes
                                         </span>
-                                        <span className={`text-[9px] font-mono font-bold ${Math.ceil(new TextEncoder().encode(payloadText).length * 8 / 7) > 64 ? 'text-rose-500' : 'text-neutral-400'}`}>
+                                        <span className={`text-[9px] font-mono font-bold ${Math.ceil(new TextEncoder().encode(payloadText).length * 8 / 7) > 64 ? 'text-rose-500' : 'text-muted-foreground'}`}>
                                             ~{Math.floor(new TextEncoder().encode(payloadText).length * 8 / 7)}/64 Chars (GSM-7)
                                         </span>
                                     </div>

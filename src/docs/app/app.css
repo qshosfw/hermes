@@ -124,3 +124,69 @@
     @apply bg-background text-foreground;
     }
 }
+
+/* ── GitHub-style Alert / Callout Overrides ── */
+/* Fumadocs Callout Components — polished left-accent design */
+
+:root {
+  --fd-color-note: #3b82f6;
+  --fd-color-tip: #22c55e;
+  --fd-color-important: #a855f7;
+  --fd-color-warning: #f59e0b;
+  --fd-color-caution: #ef4444;
+}
+
+/* Ensure all callout types have a thick left accent bar and translucent background */
+.prose [data-callout] {
+  border-left-width: 3px !important;
+  border-radius: 0.5rem !important;
+  padding: 0.875rem 1rem !important;
+  margin-top: 1.25rem !important;
+  margin-bottom: 1.25rem !important;
+}
+
+/* Individual callout type styling */
+.prose [data-callout="note"] {
+  border-left-color: var(--fd-color-note) !important;
+  background: oklch(from var(--fd-color-note) l c h / 6%) !important;
+}
+.prose [data-callout="tip"] {
+  border-left-color: var(--fd-color-tip) !important;
+  background: oklch(from var(--fd-color-tip) l c h / 6%) !important;
+}
+.prose [data-callout="important"] {
+  border-left-color: var(--fd-color-important) !important;
+  background: oklch(from var(--fd-color-important) l c h / 6%) !important;
+}
+.prose [data-callout="warning"] {
+  border-left-color: var(--fd-color-warning) !important;
+  background: oklch(from var(--fd-color-warning) l c h / 6%) !important;
+}
+.prose [data-callout="caution"],
+.prose [data-callout="danger"] {
+  border-left-color: var(--fd-color-caution) !important;
+  background: oklch(from var(--fd-color-caution) l c h / 6%) !important;
+}
+
+/* Callout titles / header labels */
+.prose [data-callout] [data-callout-title] {
+  font-weight: 700 !important;
+  font-size: 0.8125rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+
+.prose [data-callout="note"] [data-callout-title] { color: var(--fd-color-note) !important; }
+.prose [data-callout="tip"] [data-callout-title] { color: var(--fd-color-tip) !important; }
+.prose [data-callout="important"] [data-callout-title] { color: var(--fd-color-important) !important; }
+.prose [data-callout="warning"] [data-callout-title] { color: var(--fd-color-warning) !important; }
+.prose [data-callout="caution"] [data-callout-title],
+.prose [data-callout="danger"] [data-callout-title] { color: var(--fd-color-caution) !important; }
+
+/* Dark mode: slightly brighter translucent backgrounds */
+.dark .prose [data-callout="note"]      { background: oklch(from var(--fd-color-note) l c h / 8%) !important; }
+.dark .prose [data-callout="tip"]       { background: oklch(from var(--fd-color-tip) l c h / 8%) !important; }
+.dark .prose [data-callout="important"] { background: oklch(from var(--fd-color-important) l c h / 8%) !important; }
+.dark .prose [data-callout="warning"]   { background: oklch(from var(--fd-color-warning) l c h / 8%) !important; }
+.dark .prose [data-callout="caution"],
+.dark .prose [data-callout="danger"]    { background: oklch(from var(--fd-color-caution) l c h / 8%) !important; }
