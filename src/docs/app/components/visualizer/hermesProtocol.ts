@@ -43,21 +43,203 @@ export const generateRandomBytes = (length: number): Uint8Array => {
     return buffer;
 };
 
-const BASE40_CHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ-0123456789./";
+const BASE40_CHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-/.";
+
+// GSM-7 Standard Charset (0x00 - 0x7F)
+const GSM7_STANDARD =
+    "@£$¥èéùìòÇ\nØø\rÅå" +
+    "Δ_ΦΓΛΩΠΨΣΘΞ\x1BÆæßÉ" +
+    " !\"#¤%&'()*+,-./" +
+    "0123456789:;<=>?" +
+    "¡ABCDEFGHIJKLMNO" +
+    "PQRSTUVWXYZÄÖÑÜ§" +
+    "¿abcdefghijklmno" +
+    "pqrstuvwxyzäöñüà";
+
+// GSM-7 Extended Charset (Preceded by 0x1B)
+// Some custom Hermes symbols included
+const GSM7_EXTENDED: Record<number, string> = {
+    0x00: 'bold', // Custom
+    0x01: 'ital', // Custom
+    0x02: 'strk', // Custom
+    0x03: 'und',  // Custom
+    0x0A: '\f',   // Form Feed
+    0x14: '^',
+    0x1B: '\x1B', // SS2
+    0x28: '{',
+    0x29: '}',
+    0x2C: '[',
+    0x2F: '\\',
+    0x30: '¶',
+    0x31: '™',
+    0x32: '®',
+    0x33: '©',
+    0x38: '«',
+    0x39: '»',
+    0x3E: ']',
+    0x3D: '~',
+    0x40: '│',
+    0x41: '←',
+    0x42: '→',
+    0x43: '↑',
+    0x44: '↓',
+    0x46: '◀',
+    0x47: '▶',
+    0x50: '░',
+    0x51: '▒',
+    0x52: '█',
+    0x53: '▄',
+    0x54: '▌',
+    0x55: '▐',
+    0x56: '─',
+    0x57: '┌',
+    0x58: '┐',
+    0x59: '└',
+    0x5A: '┘',
+    0x5B: '├',
+    0x5C: '┤',
+    0x5D: '┬',
+    0x5E: '┴',
+    0x5F: '┼',
+    0x60: '■',
+    0x61: '□',
+    0x62: '●',
+    0x63: '○',
+    0x64: '▲',
+    0x65: '△',
+    0x66: '▼',
+    0x67: '▽',
+    0x68: '◆',
+    0x69: '◇',
+    0x6A: '★',
+    0x6B: '☆',
+    0x6C: '☺',
+    0x6D: '☻',
+    0x6E: '♥',
+    0x6F: '🌡',
+    0x70: '✓',
+    0x71: '✗',
+    0x72: '✉',
+    0x75: '€',
+};
+
+// Reverse lookup for standard
+const GSM7_STANDARD_REV: Record<string, number> = {};
+for (let i = 0; i < GSM7_STANDARD.length; i++) {
+    GSM7_STANDARD_REV[GSM7_STANDARD[i]] = i;
+}
+
+// Reverse lookup for extended
+const GSM7_EXTENDED_REV: Record<string, number> = {};
+for (const [code, char] of Object.entries(GSM7_EXTENDED)) {
+    GSM7_EXTENDED_REV[char] = parseInt(code);
+}
+
+/**
+ * Encodes a string into GSM-7 septets.
+ */
+export const textToGsm7Septets = (text: string): number[] => {
+    const septets: number[] = [];
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        if (GSM7_EXTENDED_REV[char] !== undefined) {
+            septets.push(0x1B); // Escape
+            septets.push(GSM7_EXTENDED_REV[char]);
+        } else if (GSM7_STANDARD_REV[char] !== undefined) {
+            septets.push(GSM7_STANDARD_REV[char]);
+        } else {
+            septets.push(GSM7_STANDARD_REV['?']); // Replacement
+        }
+    }
+    return septets;
+};
+
+/**
+ * Packs 7-bit septets into 8-bit octets.
+ */
+export const packGsm7 = (septets: number[], maxLength: number): Uint8Array => {
+    const octets = new Uint8Array(maxLength);
+    let bitOffset = 0;
+
+    for (const septet of septets) {
+        const bytePos = Math.floor(bitOffset / 8);
+        const shift = bitOffset % 8;
+
+        if (bytePos < maxLength) {
+            octets[bytePos] |= (septet << shift) & 0xFF;
+            if (shift > 1 && bytePos + 1 < maxLength) {
+                octets[bytePos + 1] |= (septet >> (8 - shift)) & 0xFF;
+            }
+        }
+        bitOffset += 7;
+    }
+    return octets;
+};
+
+/**
+ * Unpacks 8-bit octets into 7-bit septets.
+ */
+export const unpackGsm7 = (octets: Uint8Array): number[] => {
+    const septets: number[] = [];
+    const numSeptets = Math.floor((octets.length * 8) / 7);
+    let bitOffset = 0;
+
+    for (let i = 0; i < numSeptets; i++) {
+        const bytePos = Math.floor(bitOffset / 8);
+        const shift = bitOffset % 8;
+
+        let septet = 0;
+        if (bytePos < octets.length) {
+            septet = (octets[bytePos] >> shift) & 0x7F;
+            if (shift > 1 && bytePos + 1 < octets.length) {
+                const remainingBits = 7 - (8 - shift);
+                const mask = (1 << remainingBits) - 1;
+                septet |= (octets[bytePos + 1] & mask) << (8 - shift);
+            }
+            septets.push(septet);
+        }
+        bitOffset += 7;
+    }
+    return septets;
+};
+
+/**
+ * Converts GSM-7 septets back to a string.
+ */
+export const gsm7SeptetsToText = (septets: number[]): string => {
+    let text = "";
+    let escaped = false;
+    for (const septet of septets) {
+        if (septet === 0x1B && !escaped) {
+            escaped = true;
+            continue;
+        }
+
+        if (escaped) {
+            text += GSM7_EXTENDED[septet] || '?';
+            escaped = false;
+        } else {
+            text += GSM7_STANDARD[septet] || '?';
+        }
+    }
+    return text;
+};
 
 export const callsignToBytes = (callsign: string): Uint8Array => {
-    const padded = callsign.toUpperCase().padEnd(6, ' ');
+    // Process only up to 9 characters per M17 spec (A.4)
+    const clean = callsign.toUpperCase().slice(0, 9);
     let address = 0n;
 
-    // Per M17 spec: encode backwards from right to left (Horner's method on the reversed string)
-    // This is equivalent to `c0*40^0 + c1*40^1 + ...`
-    for (let i = 5; i >= 0; i--) {
-        const c = padded[i];
-        const v = BigInt(BASE40_CHARS.indexOf(c));
+    // A.4: "A callsign is encoded backwards, from the last character to the first character."
+    // address = 40 * address + val;
+    for (let i = clean.length - 1; i >= 0; i--) {
+        const c = clean[i];
+        const v = BigInt(BASE40_CHARS.indexOf(c) === -1 ? 0 : BASE40_CHARS.indexOf(c));
         address = address * 40n + v;
     }
 
     const bytes = new Uint8Array(6);
+    // A.2: "the final 6-byte address is the big endian encoded representation of the base-40 value."
     for (let i = 5; i >= 0; i--) {
         bytes[i] = Number(address & 0xFFn);
         address >>= 8n;
@@ -68,20 +250,27 @@ export const callsignToBytes = (callsign: string): Uint8Array => {
 export const bytesToCallsign = (bytes: Uint8Array): string => {
     let address = 0n;
     for (let i = 0; i < 6; i++) {
-        address = (address << 8n) + BigInt(bytes[i]);
+        address = (address << 8n) | BigInt(bytes[i]);
     }
 
+    // A.3: Standard addresses are from 0x1 to 0xEE6B27FFFFFF
     if (address === 0n) return "";
+    if (address >= 0xEE6B28000000n) {
+        if (address === 0xFFFFFFFFFFFFn) return "BROADCAST";
+        return `EXT-${address.toString(16).toUpperCase()}`;
+    }
 
     let callsign = "";
-    // Decode by repeatedly taking modulo 40 to get the coefficients
-    // from lowest power to highest (c0, c1, c2...), which builds the callsign left-to-right.
-    for (let i = 0; i < 6; i++) {
+    // A.5 Decoder Example:
+    // while (address) { cs[i++] = m17chars[address % 40u]; address /= 40u; }
+    while (address > 0n) {
         const remainder = Number(address % 40n);
         address /= 40n;
         callsign += BASE40_CHARS[remainder];
     }
-    return callsign.trim();
+
+    // M17 decoding produces the string in order (first char at index 0)
+    return callsign;
 };
 
 
@@ -578,37 +767,7 @@ export const parseTelemetryPayload = (payload: Uint8Array): TelemetryPacketInfo 
     return info;
 };
 
-// Simulates Reed-Solomon(128,96) encoding
-export const reedSolomonEncode = (data: Uint8Array): { data: Uint8Array, parity: Uint8Array } => {
-    if (data.length !== 96) throw new Error("Input data must be 96 bytes");
-    // Simulate parity generation. In a real scenario, this would be calculated.
-    // We'll create a simple pattern for visualization.
-    const parity = new Uint8Array(32);
-    for (let i = 0; i < 32; i++) {
-        parity[i] = (0xDA + i) % 256;
-    }
-    return { data, parity };
-};
-
-// 3:1 data/parity interleaving
-export const interleave = (data: Uint8Array, parity: Uint8Array): Uint8Array => {
-    const interleaved = new Uint8Array(128);
-    for (let i = 0; i < 32; i++) {
-        interleaved.set(data.slice(i * 3, i * 3 + 3), i * 4);
-        interleaved[i * 4 + 3] = parity[i];
-    }
-    return interleaved;
-};
-
-export const deInterleave = (interleaved: Uint8Array): { data: Uint8Array, parity: Uint8Array } => {
-    const data = new Uint8Array(96);
-    const parity = new Uint8Array(32);
-    for (let i = 0; i < 32; i++) {
-        data.set(interleaved.slice(i * 4, i * 4 + 3), i * 3);
-        parity[i] = interleaved[i * 4 + 3];
-    }
-    return { data, parity };
-};
+// FEC is now the last stage. Interleaving is removed.
 
 /**
  * Generates a pseudo-random byte sequence using a PN15 LFSR (x^15 + x^14 + 1).
@@ -639,27 +798,10 @@ export const generatePn15Sequence = (length: number, initialState = 0x4224): Uin
 };
 
 export const whiten = (data: Uint8Array, syncWord: Uint8Array, pn15Sequence: Uint8Array): Uint8Array => {
-    const whitened = new Uint8Array(data.length);
-    for (let i = 0; i < data.length; i++) {
+    const whitened = new Uint8Array(96);
+    for (let i = 0; i < 96; i++) {
         const syncByte = syncWord[i % syncWord.length];
         whitened[i] = data[i] ^ syncByte ^ pn15Sequence[i];
     }
     return whitened;
-};
-
-export const nrziEncode = (data: Uint8Array): number[] => {
-    let lastLevel = 1;
-    const levels: number[] = [];
-
-    for (let i = 0; i < data.length; i++) {
-        for (let j = 7; j >= 0; j--) {
-            const bit = (data[i] >> j) & 1;
-            if (bit === 0) { // 0 -> transition
-                lastLevel *= -1;
-            }
-            // 1 -> no transition
-            levels.push(lastLevel);
-        }
-    }
-    return levels;
 };

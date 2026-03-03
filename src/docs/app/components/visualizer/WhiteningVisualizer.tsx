@@ -1,183 +1,157 @@
 import React, { useState, useMemo } from 'react';
-import HexDump from './HexDump';
-import InteractiveEntropyGraph from './InteractiveEntropyGraph';
+import { whiten, generatePn15Sequence, bytesToHex } from './hermesProtocol';
+import { DEFAULT_SYNC_WORD } from './constants';
 
 interface WhiteningVisualizerProps {
-  interleavedData: Uint8Array;
-  whitenedData: Uint8Array;
-  syncWord: Uint8Array;
-  pn15Sequence: Uint8Array;
+    rawData?: Uint8Array;
+    whitenedData?: Uint8Array;
+    syncWord?: Uint8Array;
+    pn15Sequence?: Uint8Array;
 }
 
-const Section: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-    <div className="bg-neutral-900/30 border border-neutral-800 rounded-xl p-4 flex flex-col h-full">
-        <h4 className="text-xs uppercase tracking-wide font-semibold text-neutral-500 mb-4 border-b border-neutral-800 pb-2">{label}</h4>
-        <div className="flex-grow flex flex-col justify-center">
-            {children}
-        </div>
-    </div>
-);
-
-const ByteInspector: React.FC<{ byteData: any }> = ({ byteData }) => (
-    <div className="h-full flex flex-col justify-center">
-        {byteData ? (
-            <div className="space-y-1 font-mono text-sm">
-                <div className="grid grid-cols-[1fr,2fr,auto] gap-x-4 items-center mb-2 pb-2 border-b border-neutral-800">
-                    <span className="text-[10px] uppercase text-neutral-500 font-bold">Step</span>
-                    <span className="text-[10px] uppercase text-neutral-500 font-bold">Binary</span>
-                    <span className="text-[10px] uppercase text-neutral-500 font-bold">Hex</span>
-                </div>
-                
-                <div className="grid grid-cols-[1fr,2fr,auto] gap-x-4 items-center py-1">
-                    <span className="font-sans text-neutral-400 text-xs font-medium">Interleaved</span>
-                    <span className="text-neutral-300 tracking-widest">{byteData.interleaved.toString(2).padStart(8, '0')}</span>
-                    <span className="text-amber-500 font-bold">0x{byteData.interleaved.toString(16).padStart(2,'0').toUpperCase()}</span>
-                </div>
-                
-                <div className="flex items-center my-1 opacity-50">
-                    <span className="font-sans text-neutral-600 text-[10px] w-full border-b border-neutral-800 text-center relative"><span className="bg-neutral-900/30 px-2 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">XOR</span></span>
-                </div>
-                
-                <div className="grid grid-cols-[1fr,2fr,auto] gap-x-4 items-center py-1">
-                    <span className="font-sans text-neutral-400 text-xs font-medium">Sync Word</span>
-                    <span className="text-neutral-300 tracking-widest">{byteData.sync.toString(2).padStart(8, '0')}</span>
-                     <span className="text-blue-500 font-bold">0x{byteData.sync.toString(16).padStart(2,'0').toUpperCase()}</span>
-                </div>
-                
-                <div className="flex items-center my-1 opacity-50">
-                    <span className="font-sans text-neutral-600 text-[10px] w-full border-b border-neutral-800 text-center relative"><span className="bg-neutral-900/30 px-2 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">XOR</span></span>
-                </div>
-                
-                 <div className="grid grid-cols-[1fr,2fr,auto] gap-x-4 items-center py-1">
-                    <span className="font-sans text-neutral-400 text-xs font-medium">PN15 Seq</span>
-                    <span className="text-neutral-300 tracking-widest">{byteData.pn15.toString(2).padStart(8, '0')}</span>
-                     <span className="text-purple-500 font-bold">0x{byteData.pn15.toString(16).padStart(2,'0').toUpperCase()}</span>
-                </div>
-                
-                 <div className="mt-3 pt-3 border-t border-neutral-700">
-                     <div className="grid grid-cols-[1fr,2fr,auto] gap-x-4 items-center bg-white/5 p-3 rounded-lg ring-1 ring-white/10">
-                        <span className="font-sans text-white font-bold text-xs">Whitened</span>
-                        <span className="text-white tracking-widest font-bold">{byteData.whitened.toString(2).padStart(8, '0')}</span>
-                         <span className="text-white font-bold text-base">0x{byteData.whitened.toString(16).padStart(2,'0').toUpperCase()}</span>
-                    </div>
-                </div>
-
-            </div>
-        ) : (
-            <div className="flex flex-col items-center justify-center text-neutral-500 text-sm h-48">
-                <span className="mb-2 opacity-50">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M15.042 21.672 13.684 16.6m0 0-2.51 2.225.569-9.47 5.227 7.917-3.286-.672ZM12 2.25V4.5m5.834.166-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243-1.59-1.59" /></svg>
-                </span>
-                Hover over a byte below to inspect logic.
-            </div>
-        )}
-    </div>
-);
-
-
-const LfsrDisplay: React.FC<{ step: number }> = ({ step }) => {
-    const calculatedState = useMemo(() => {
-        let lfsr = 0x4224; // Initial state
-        const totalSteps = step;
-        for (let i = 0; i < totalSteps; i++) {
-            const newBit = ((lfsr >> 14) ^ (lfsr >> 13)) & 1;
-            lfsr = ((lfsr << 1) | newBit) & 0x7FFF;
-        }
-        return lfsr;
-    }, [step]);
-    
-    const bits = calculatedState.toString(2).padStart(15, '0');
-    const tap14 = (calculatedState >> 13) & 1;
-    const tap15 = (calculatedState >> 14) & 1;
-    const newBit = tap14 ^ tap15;
-
+const ByteInspector: React.FC<{ byteData: { raw: number, pn15: number, whitened: number } }> = ({ byteData }) => {
     return (
-        <div className="h-full flex flex-col justify-center items-center">
-            <div className="font-mono text-[10px] text-neutral-500 mb-4 bg-neutral-900 px-2 py-1 rounded border border-neutral-800">Poly: x¹⁵ + x¹⁴ + 1</div>
-            <div className="flex justify-center items-center space-x-1 font-mono text-lg text-neutral-200 relative mb-2">
-                {bits.split('').map((bit, i) => (
-                    <span key={i} className={`w-6 h-8 flex items-center justify-center rounded-sm transition-colors duration-300 ${i === 0 ? 'bg-rose-500/20 text-rose-300 ring-1 ring-rose-500/40' : ''} ${i === 1 ? 'bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/40' : 'bg-black/40 ring-1 ring-neutral-800'}`}>
-                        {bit}
-                    </span>
-                ))}
-            </div>
-            <div className="h-12 relative mt-4 w-full max-w-[280px] flex justify-center items-center opacity-70">
-                 <svg viewBox="0 0 250 40" className="w-full h-full">
-                    {/* Line from bit 15 */}
-                    <path d="M14 0 V 15 H 100" stroke="#f43f5e" strokeWidth="2" fill="none" />
-                    {/* Line from bit 14 */}
-                    <path d="M38 0 V 15 H 100" stroke="#fbbf24" strokeWidth="2" fill="none" />
-                    {/* XOR circle */}
-                    <circle cx="100" cy="15" r="8" stroke="#525252" strokeWidth="2" fill="#171717" />
-                    <line x1="96" y1="11" x2="104" y2="19" stroke="#525252" strokeWidth="2" />
-                    <line x1="104" y1="11" x2="96" y2="19" stroke="#525252" strokeWidth="2" />
-                    {/* Line to new bit */}
-                     <path d="M108 15 H 150 V 30 H 230" stroke="#4ade80" strokeWidth="2" fill="none" />
-                     <path d="M230 30 L 225 27 M 230 30 L 225 33" stroke="#4ade80" strokeWidth="2" fill="none" />
-                </svg>
-            </div>
-             <div className="font-mono text-sm flex justify-center items-baseline gap-x-6 mt-2 w-full">
-                <div className="flex flex-col items-center">
-                    <span className="text-rose-400 font-bold text-lg">{tap15}</span>
-                    <div className="text-[9px] text-neutral-600 uppercase font-bold tracking-wide">Tap 15</div>
+        <div className="space-y-4">
+            <div className="bg-zinc-950/50 p-6 rounded-2xl border border-zinc-800 shadow-inner">
+                <div className="grid grid-cols-[1fr,2fr,auto] gap-x-4 items-center py-1">
+                    <span className="font-sans text-zinc-400 text-[10px] font-bold uppercase tracking-widest">Raw Input</span>
+                    <span className="text-zinc-200 tracking-[0.2em] font-mono">{byteData.raw.toString(2).padStart(8, '0')}</span>
+                    <span className="text-indigo-400 font-bold font-mono">0x{byteData.raw.toString(16).padStart(2, '0').toUpperCase()}</span>
                 </div>
-                 <span className="text-neutral-600 text-xs self-center">XOR</span>
-                 <div className="flex flex-col items-center">
-                    <span className="text-amber-400 font-bold text-lg">{tap14}</span>
-                    <div className="text-[9px] text-neutral-600 uppercase font-bold tracking-wide">Tap 14</div>
+
+                <div className="flex items-center my-2 opacity-30 px-20">
+                    <div className="h-px bg-zinc-700 flex-grow"></div>
+                    <span className="px-2 text-zinc-500 font-bold text-[10px]">XOR</span>
+                    <div className="h-px bg-zinc-700 flex-grow"></div>
                 </div>
-                 <span className="text-neutral-600 text-xs self-center">=</span>
-                 <div className="flex flex-col items-center">
-                    <span className="text-emerald-400 font-bold text-lg bg-emerald-900/20 px-3 py-0.5 rounded border border-emerald-500/30">{newBit}</span>
-                    <div className="text-[9px] text-emerald-600 uppercase font-bold tracking-wide mt-1">Feedback</div>
+
+                <div className="grid grid-cols-[1fr,2fr,auto] gap-x-4 items-center py-1">
+                    <span className="font-sans text-zinc-400 text-[10px] font-bold uppercase tracking-widest">PN15 Scramble</span>
+                    <span className="text-purple-400 tracking-[0.2em] font-mono">{byteData.pn15.toString(2).padStart(8, '0')}</span>
+                    <span className="text-purple-500 font-bold font-mono">0x{byteData.pn15.toString(16).padStart(2, '0').toUpperCase()}</span>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-zinc-800">
+                    <div className="grid grid-cols-[1fr,2fr,auto] gap-x-4 items-center bg-zinc-100 p-4 rounded-xl shadow-xl ring-1 ring-white/20">
+                        <span className="font-sans text-zinc-900 font-bold text-[10px] uppercase tracking-widest">Whitened</span>
+                        <span className="text-zinc-900 tracking-[0.3em] font-bold text-base font-mono">{byteData.whitened.toString(2).padStart(8, '0')}</span>
+                        <span className="text-zinc-900 font-black text-lg font-mono">0x{byteData.whitened.toString(16).padStart(2, '0').toUpperCase()}</span>
+                    </div>
                 </div>
             </div>
         </div>
     );
 };
 
+const Section: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+    <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl p-6 flex flex-col h-full shadow-sm">
+        <h4 className="text-[10px] uppercase tracking-[0.2em] font-bold text-zinc-500 mb-6 border-b border-zinc-800 pb-2">{label}</h4>
+        <div className="flex-grow flex flex-col justify-center">
+            {children}
+        </div>
+    </div>
+);
 
-const WhiteningVisualizer: React.FC<WhiteningVisualizerProps> = ({ interleavedData, whitenedData, syncWord, pn15Sequence }) => {
-    const [hoveredIndex, setHoveredIndex] = useState<number | null>(0);
-
-    const selectedByteData = useMemo(() => {
-        if (hoveredIndex === null || hoveredIndex >= interleavedData.length) return null;
-        return {
-            interleaved: interleavedData[hoveredIndex],
-            sync: syncWord[hoveredIndex % syncWord.length],
-            pn15: pn15Sequence[hoveredIndex],
-            whitened: whitenedData[hoveredIndex],
-        };
-    }, [hoveredIndex, interleavedData, syncWord, pn15Sequence, whitenedData]);
+const LfsrDisplay: React.FC<{ step: number }> = ({ step }) => {
+    // Polynomial: x^15 + x^14 + 1
+    const lfsrState = useMemo(() => {
+        let state = 0x4224;
+        for (let i = 0; i < step; i++) {
+            const bit = ((state >> 0) ^ (state >> 1)) & 1;
+            state = (state >> 1) | (bit << 14);
+        }
+        return state;
+    }, [step]);
 
     return (
-        <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-auto md:h-80">
-                <Section label="Byte Logic Inspector">
+        <div className="flex flex-col items-center justify-center space-y-4 py-4">
+            <div className="flex gap-1.5 flex-wrap justify-center">
+                {stateToBits(lfsrState).map((bit, i) => (
+                    <div key={i} className={`w-6 h-10 flex items-center justify-center border font-mono text-sm rounded-md transition-all duration-300 ${bit ? 'bg-purple-600 border-purple-400 text-white shadow-[0_0_10px_rgba(168,85,247,0.4)]' : 'bg-zinc-950 border-zinc-800 text-zinc-600'}`}>
+                        {bit}
+                    </div>
+                ))}
+            </div>
+            <div className="text-[10px] font-bold text-purple-500 uppercase tracking-widest mt-2 bg-purple-500/10 px-3 py-1 rounded-full border border-purple-500/20">
+                LFSR State: 0x{lfsrState.toString(16).padStart(4, '0').toUpperCase()}
+            </div>
+        </div>
+    );
+};
+
+const stateToBits = (state: number): number[] => {
+    const bits: number[] = [];
+    for (let i = 14; i >= 0; i--) {
+        bits.push((state >> i) & 1);
+    }
+    return bits;
+};
+
+const WhiteningVisualizer: React.FC<WhiteningVisualizerProps> = ({
+    rawData: propRawData,
+    whitenedData: propWhitenedData,
+    syncWord: propSyncWord,
+    pn15Sequence: propPn15Sequence
+}) => {
+    const [hoveredIndex, setHoveredIndex] = useState<number | null>(0);
+
+    // Use props or fall back to defaults
+    const rawData = useMemo(() => {
+        if (propRawData) return propRawData;
+        const data = new Uint8Array(96);
+        for (let i = 0; i < 96; i++) data[i] = (i * 7) % 256;
+        return data;
+    }, [propRawData]);
+
+    const syncWord = propSyncWord ?? DEFAULT_SYNC_WORD;
+    const pn15Sequence = useMemo(() => propPn15Sequence ?? generatePn15Sequence(96), [propPn15Sequence]);
+    const whitenedData = useMemo(() => propWhitenedData ?? whiten(rawData, syncWord, pn15Sequence), [propWhitenedData, rawData, syncWord, pn15Sequence]);
+
+    const selectedByteData = useMemo(() => {
+        const idx = hoveredIndex ?? 0;
+        return {
+            raw: rawData[idx],
+            pn15: pn15Sequence[idx],
+            whitened: whitenedData[idx]
+        };
+    }, [hoveredIndex, rawData, pn15Sequence, whitenedData]);
+
+    return (
+        <div className="space-y-8 animate-in fade-in duration-700">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <Section label="Whitening Logic">
                     <ByteInspector byteData={selectedByteData} />
                 </Section>
 
-                <Section label="PN15 LFSR Simulation">
+                <Section label="PN15 LFSR Engine">
                     <LfsrDisplay step={hoveredIndex !== null ? hoveredIndex * 8 : 0} />
                 </Section>
             </div>
-             
-             <div className="grid grid-cols-1 gap-6">
-                <div className="space-y-2">
-                    <h4 className="text-xs uppercase tracking-wide font-semibold text-neutral-500 pl-1">Data Frame Output</h4>
-                    <HexDump 
-                        data={whitenedData}
-                        beforeData={interleavedData}
-                        bytesPerRow={16} 
-                        onByteHover={setHoveredIndex}
-                    />
+
+            <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-800 shadow-2xl">
+                <h4 className="text-[10px] uppercase font-bold text-zinc-500 mb-6 tracking-widest flex items-center gap-2">
+                    <div className="w-1 h-1 rounded-full bg-indigo-500"></div>
+                    Packet Stream (96 Bytes)
+                </h4>
+                <div className="grid grid-cols-8 md:grid-cols-16 gap-2">
+                    {Array.from(whitenedData).map((byte, i) => (
+                        <div
+                            key={i}
+                            onMouseEnter={() => setHoveredIndex(i)}
+                            className={`aspect-square flex items-center justify-center text-[10px] font-mono border rounded-md cursor-crosshair transition-all duration-200 ${hoveredIndex === i ? 'bg-indigo-600 border-indigo-400 text-white shadow-lg scale-110 z-10' : 'bg-zinc-900/50 border-zinc-800/50 text-zinc-500 hover:border-zinc-600 hover:bg-zinc-800'}`}
+                        >
+                            {byte.toString(16).padStart(2, '0').toUpperCase()}
+                        </div>
+                    ))}
                 </div>
-                <div className="space-y-2">
-                    <h4 className="text-xs uppercase tracking-wide font-semibold text-neutral-500 pl-1">Entropy Analysis</h4>
-                    <InteractiveEntropyGraph 
-                        beforeData={interleavedData} 
-                        afterData={whitenedData} 
-                    />
+                <div className="mt-6 flex justify-between items-center px-1">
+                    <div className="flex gap-6 items-center">
+                        <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-indigo-600"></div>
+                            <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Whitened Byte</span>
+                        </div>
+                    </div>
+                    <span className="text-[10px] font-mono text-zinc-600">Hover bytes to inspect transformation</span>
                 </div>
             </div>
         </div>

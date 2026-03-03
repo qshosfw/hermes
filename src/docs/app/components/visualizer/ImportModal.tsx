@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { hexToBytes, bytesToHex, generatePn15Sequence, whiten, deInterleave, parseHeader, parsePingPayload, parseAckPayload, parseTelemetryPayload, bytesToText } from './hermesProtocol';
+import { hexToBytes, bytesToHex, generatePn15Sequence, whiten, parseHeader, parsePingPayload, parseAckPayload, parseTelemetryPayload, bytesToText } from './hermesProtocol';
 import UploadIcon from './icons/UploadIcon';
 import XIcon from './icons/XIcon';
 import type { PacketHeaderConfig, AckedPacketInfo, TelemetryPacketInfo } from './types';
@@ -65,17 +65,16 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, currentShare
             const whitenedData = bytes.slice(20, 148);
 
             // De-whiten
-            const pn15 = generatePn15Sequence(128);
-            // XOR is symmetric, so we can use whiten function to de-whiten
-            const interleaved = whiten(whitenedData, syncWord, pn15);
+            const pn15 = generatePn15Sequence(128); // Generate for full 128 byte frame
+            const frame = whiten(whitenedData, syncWord, pn15);
 
-            // De-interleave
-            const { data } = deInterleave(interleaved);
+            // In the new pipeline, data is at the start [0:96] and parity is at [96:128]
+            const data = frame.slice(0, 96);
 
             // Parse
-            const headerBytes = data.slice(0, 26);
-            const payloadBytes = data.slice(26, 80);
-            // Signature is at 80-96, mostly for verification which we skip/assume implicitly by importing
+            const headerBytes = data.slice(0, 24);
+            const payloadBytes = data.slice(24, 80);
+            // Signature is at 80-96
 
             const config = parseHeader(headerBytes);
 

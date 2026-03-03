@@ -1,0 +1,155 @@
+---
+title: Link Quality (LQI)
+description: Hardware telemetry synthesis, Fast Integer Sigmoid, and SNR-based backoff for managed flooding
+---
+
+import { Activity, Signal, Zap, AlertTriangle, Cpu, Radio } from 'lucide-react';
+import LqiVisualizerMDX from '@/components/visualizer/LqiVisualizerMDX';
+
+# <Activity className="inline w-6 h-6 mr-2 text-emerald-400" /> 4. Link Quality Indicator (LQI)
+
+The fundamental limitation of common Link Quality Estimators (LQE) in legacy protocols is their reliance on historical, MAC-layer Packet Delivery Ratios (PDR). PDR is inherently backward-looking — it requires the continuous exchange of probe packets over time to establish a statistical average, making it disastrously slow to update.
+
+In transient, highly mobile mesh environments, the network requires a **highly agile, instantaneous estimator** computed independently upon the arrival of every mesh packet. Hermes achieves this by synthesizing raw hardware telemetry from the BK4819 transceiver into a unified **Fast Integer Sigmoid LQI**.
+
+---
+
+## 4.1 Hardware Telemetry Inputs
+
+The BK4819 transceiver provides three primary diagnostic outputs that form the foundation of all link quality analysis.
+
+### RSSI — `REG_67<8:0>`
+
+The Received Signal Strength Indicator measures the total, un-demodulated RF energy present at the receiver's front end at the instant the preamble arrives. It captures not merely the intended signal energy, but also all environmental noise and out-of-band interference passing through the hardware filters.
+
+The register provides 0.5 dB resolution. The calibrated power calculation:
+
+$$
+RSSI_{cal} \text{ (dBm)} = \frac{\text{REG\_67}\langle8:0\rangle}{2} - RSSI_{offset}
+$$
+
+Where $RSSI_{offset}$ is typically $130 \pm 30$ depending on the hardware front-end, LNA stages, and AGC index.
+
+### ExNoise — `REG_65<6:0>`
+
+A critical failure of naive link estimators is relying on RSSI alone. A high RSSI may indicate a clean, proximate signal **or** massive ambient interference masking a weak one. `REG_65` resolves this ambiguity — it measures baseband energy that is explicitly **not correlated** with the demodulated FSK bitstream.
+
+### Glitch — `REG_63<7:0>`
+
+Operating deep within the demodulation tier, `REG_63` acts as an instantaneous accumulator for baseband irregularities and synchronization errors (the IMP_CNT — Impulse Count). It tracks sub-packet symbol degradation, multipath fading, and timing offsets that distort incoming waveforms **before** they trigger a CRC error. A higher glitch rate is a leading indicator of link decay that RSSI completely fails to capture.
+
+| Metric | Register | Field | Transformation | Description |
+|:---|:---|:---:|:---|:---|
+| **RSSI** | REG_67 | `<8:0>` | `(Value / 2) - RSSI_offset` dBm | Total RF envelope energy at front end. |
+| **ExNoise** | REG_65 | `<6:0>` | Native dB/step | Uncorrelated out-of-band noise floor. |
+| **Glitch** | REG_63 | `<7:0>` | Discrete count | Impulse noise events, sync decay, multipath. |
+
+---
+
+## 4.2 The RSSI Triad
+
+Every ACK Health Blob carries **three distinct RSSI measurements** to characterize the bidirectional link:
+
+| Metric | Variable | Description |
+|:---|:---:|:---|
+| **ACKed RSSI** | $R_{pkt}$ | Signal strength of the data packet being acknowledged (forward path). |
+| **ACKing RSSI** | $R_{ack}$ | Signal strength of the *previous* packet received from the destination (reverse path). |
+| **Idle RSSI** | $R_{idle}$ | Ambient noise floor measured just before reception (SNR baseline). |
+
+By combining all three values, the sender gains a complete picture of the **bidirectional SNR** without requiring a separate diagnostic exchange. This inherently corrects for asymmetric links (e.g., a high-gain antenna talking to a standard handheld), because $R_{ack}$ captures the reverse path independently.
+
+SNR is computed for both paths:
+
+$$
+S_{fwd} = R_{pkt} - R_{idle} \quad \text{and} \quad S_{rev} = R_{ack} - R_{idle}
+$$
+
+---
+
+## 4.3 The Fast Integer Sigmoid (Elliot Approximation)
+
+Rather than employing computationally expensive floating-point math (standard Sigmoids with `exp()`), Hermes implements an **Elliot Sigmoid Approximation** that maps perfectly onto bit-shift operations on ARM Cortex-M0 chips.
+
+### Why a Sigmoid?
+
+Empirical measurements of Packet Delivery Ratio in FSK transceivers show that the relationship between SNR and successful packet reception is **not linear** — it follows a sigmoid curve. The probability of success transitions rapidly from 0 to near 1.0 over a narrow SNR range, typically beginning around 6 dB and reaching a knee around 11-12 dB.
+
+The Elliot activation function provides an excellent approximation of standard logistic regression while executing significantly faster on constrained processors. Unlike exponential sigmoids, the Elliot curve converges more slowly towards its asymptotes — this prevents premature saturation at 0 or 255, preserving gradient resolution to differentiate between moderately stable and exceptionally pristine links.
+
+### The Formula
+
+For each path, evaluate the integer Link Probability curve centered at Midpoint $M=6$ dB and Scale $K=2$:
+
+$$
+P_{int}(S) = 127 + \frac{(S - M) \times 128}{\lvert S - M \rvert + K}
+$$
+
+The final `0-255` value is the average of both paths:
+
+$$
+LQI_{fast} = \text{clamp}\left(0, \frac{P_{int}(S_{fwd}) + P_{int}(S_{rev})}{2}, 255\right)
+$$
+
+> [!TIP]
+> **Embedded Optimization:** Multiplication by `128` maps directly to a left bit-shift (`<< 7`), while `|x|` maps to `abs()`. This produces a smooth S-curve logistic regression spanning `0` to `255` using strict integer division — no floating-point operations required.
+
+---
+
+## 4.4 Interactive LQI Calculator
+
+Use the tool below to see how different radio conditions affect the final Link Quality score carried in ACK packets.
+
+<LqiVisualizerMDX />
+
+---
+
+## 4.5 Interpretation Scale
+
+| LQI Value | Quality Level | Expected Behavior |
+|:---|:---|:---|
+| **200 - 255** | 💎 **Excellent** | Near-perfect PSR. Ideal for high-bandwidth telemetry. |
+| **120 - 199** | ✅ **Good** | Stable link. Minor FEC correction active. |
+| **60 - 119** | ⚠️ **Fair** | Noticeable packet loss. Heavy FEC correction. |
+| **0 - 59** | 💀 **Critical** | Link near total failure. Maximum retry required. |
+
+---
+
+## 4.6 LQI-Driven Flood Backoff (LQ-CSMA)
+
+With an instantaneous, robust SNR available upon every packet arrival, the MAC-layer flooding contention parameters can be heavily optimized. Standard CSMA/CA picks a random backoff slot within a static contention window — this ignores the physical topology entirely. A node adjacent to the transmitter has the same probability of forwarding first as a node at the absolute edge of range.
+
+Hermes replaces this with **Link-Quality Aware CSMA** (LQ-CSMA): nodes with higher SNR get shorter backoff delays, ensuring the strongest geographic links consistently capture the channel first.
+
+### Graded Deterministic Backoff
+
+The random backoff is replaced with a graded function bounded by the real-time forward SNR:
+
+$$
+M_{delay} = \left\lfloor CW_{base} \times \max\left(0, 1 - \frac{S_{fwd}}{SNR_{target}}\right)^\gamma \right\rfloor
+$$
+
+Where $SNR_{target}$ is the optimal threshold (~20 dB) and $\gamma \ge 1$ is the shaping factor. Higher $\gamma$ creates an aggressive parabolic decay, tightly grouping high-SNR nodes into the earliest slots.
+
+### Hybrid Jitter
+
+A purely deterministic backoff can cause **deterministic collisions** when two equidistant nodes measure identical SNR. The final delay includes constrained random jitter:
+
+$$
+T_{backoff} = (M_{delay} + \text{rand}(0, W_{jitter})) \times T_{slot}
+$$
+
+High-SNR links get minimal jitter (staying prioritized), while poorer links get broader jitter to disaggregate their transmissions.
+
+> [!IMPORTANT]
+> **Why this matters:** If the adjacent node randomly wins and forwards first, its transmission adds minimal geographic range while raising the noise floor — forcing the optimal edge-node to abort. LQ-CSMA eliminates this "stuttering" pattern, reducing hop counts and end-to-end latency.
+
+---
+
+## 4.7 Forwarding Penalties
+
+Nodes use LQI to dynamically adjust forwarding behavior:
+- **LQI < 100**: Node adds a **Penalty Delay** of 250ms before forwarding to avoid congested/weak paths.
+- **LQI < 40**: Neighbor is marked as **Stale** and deprioritized in the forwarding decision.
+
+> [!NOTE]
+> **Measurement Bias**: Always normalize RSSI measurements by subtracting the **noise floor** of the specific hardware front-end to ensure LQI consistency across different device types.

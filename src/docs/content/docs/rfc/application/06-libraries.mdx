@@ -1,0 +1,56 @@
+---
+title: Recommended Libraries
+description: Standard implementions and libraries for Hermes
+---
+
+import { Library, Cpu, Globe, Code } from 'lucide-react';
+
+# <Library className="inline w-6 h-6 mr-2 text-blue-400" /> 6. Recommended Libraries
+
+To ensure interoperability and performance across different platforms (Embedded, Mobile, Web), we recommend the following libraries and implementations.
+
+## 6.1 Cryptography (ChaCha20-Poly1305)
+
+Hermes requires high-performance AEAD. Avoid custom implementations.
+
+### 6.1.1 C / Embedded
+- **[Monocypher](https://monocypher.org/)**: Extremely lightweight, auditable, and easy to port to AVR/ARM.
+- **[mbedTLS](https://github.com/Mbed-TLS/mbedtls)**: Comprehensive suite, supports hardware acceleration on ESP32/nRF52.
+- **[Libhydrogen](https://github.com/jedisct1/libhydrogen)**: Optimized for very small microcontrollers.
+
+### 6.1.2 TypeScript / Web
+- **[@stablelib/chacha20poly1305](https://www.npmjs.com/package/@stablelib/chacha20poly1305)**: Standard used in the Hermes Visualizer.
+- **[libsodium.js](https://github.com/jedisct1/libsodium.js)**: Full-featured WASM build of libsodium.
+
+---
+
+## 6.2 Error Correction (Reed-Solomon)
+
+Hermes uses a specific **RS(128, 96)** code over GF(2^8).
+
+- **[LwFEC](https://github.com/qshosfw/hermes/tree/main/firmware/lib/lwfec)**: A lightweight FEC library specifically tuned for Hermes' interleaving-free pipeline.
+- **[Schifra](http://www.schifra.com/)**: A robust C++ Reed-Solomon library (Desktop/Linux only).
+
+---
+
+## 6.3 Framing & Data Handling
+
+### 6.3.1 GSM-7 Encoding
+Standard GSM-7 requires bit-shifting. For resource-constrained devices, use a lookup table for the character set to avoid expensive branching.
+
+### 6.3.2 Base40 (Callsigns)
+Implemented in the `hermesProtocol` utility. For C, utilize bitwise operations to efficiently pack the callsign into a 6-byte Big Endian integer.
+
+---
+
+## 6.4 HAL Implementation (Radio)
+
+| Platform | Recommended Driver |
+| :--- | :--- |
+| **BK4819** | [official-driver.c](https://github.com/qshosfw/matoz/blob/main/driver/bk4819.c) |
+| **SX1278** | [RadioLib](https://github.com/jgromes/RadioLib) (requires FSK mode) |
+| **SDR** | [GNU Radio](https://www.gnuradio.org/) (Hermes OOT Module) |
+
+> [!TIP]
+> **Minimalist Target**
+> If you are building for a device with < 32KB RAM, we strongly recommend using **Monocypher** and the **LwFEC** library to keep the code footprint within 8KB.

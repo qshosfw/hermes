@@ -1,121 +1,104 @@
-import React, { useState, useEffect, useMemo } from 'react';
+'use client';
+
+import React, { useState, useMemo } from 'react';
 import InfoIcon from './icons/InfoIcon';
 import HexDump from './HexDump';
 
-interface InterleavingVisualizerProps {
-  data: Uint8Array;
-  parity: Uint8Array;
-}
-
-const Byte: React.FC<{ value: number; isVisible: boolean; type: 'data' | 'parity' | 'placeholder'; responsive?: boolean }> = ({ value, isVisible, type, responsive = false }) => {
-    const sizeClasses = responsive ? "w-full aspect-square" : "w-10 h-10";
-    const fontClasses = responsive ? "text-[0.6rem] sm:text-xs" : "text-sm";
-    
-    let colorClass = '';
-    switch(type) {
-        case 'data': colorClass = 'bg-cyan-600 text-white shadow-lg shadow-cyan-900/20'; break;
-        case 'parity': colorClass = 'bg-rose-600 text-white shadow-lg shadow-rose-900/20'; break;
-        case 'placeholder': colorClass = 'bg-neutral-800 ring-1 ring-neutral-700'; break;
-    }
-
-    const baseClasses = `${sizeClasses} flex items-center justify-center font-mono ${fontClasses} rounded-lg transition-all duration-300 ease-in-out border border-white/10`;
-    const visibilityClass = isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-50';
-
-    return (
-        <div className={`${baseClasses} ${visibilityClass} ${colorClass}`}>
-            {type !== 'placeholder' ? value.toString(16).padStart(2, '0').toUpperCase() : ''}
-        </div>
-    );
-};
-
-const InterleavingVisualizer: React.FC<InterleavingVisualizerProps> = ({ data, parity }) => {
+const FecVisualizer: React.FC = () => {
     const [step, setStep] = useState(0);
     const totalSteps = 32;
 
-    const interleavedData = useMemo(() => {
-        const interleaved = new Uint8Array(128);
-        for (let i = 0; i < 32; i++) {
-            interleaved.set(data.slice(i * 3, i * 3 + 3), i * 4);
-            interleaved[i * 4 + 3] = parity[i];
-        }
-        return interleaved;
+    const data = useMemo(() => {
+        const arr = new Uint8Array(96).fill(0x00);
+        for (let i = 0; i < 96; i++) arr[i] = (i * 3) % 256;
+        return arr;
+    }, []);
+
+    const parity = useMemo(() => {
+        const arr = new Uint8Array(32);
+        for (let i = 0; i < 32; i++) arr[i] = (0xDA + i) % 256;
+        return arr;
+    }, []);
+
+    const fullFrame = useMemo(() => {
+        const frame = new Uint8Array(128);
+        frame.set(data, 0);
+        frame.set(parity, 96);
+        return frame;
     }, [data, parity]);
 
     const visibleData = useMemo(() => {
-        return interleavedData.slice(0, step * 4);
-    }, [interleavedData, step]);
+        if (step === 0) return data;
+        const currentData = new Uint8Array(96 + step);
+        currentData.set(data, 0);
+        currentData.set(parity.slice(0, step), 96);
+        return currentData;
+    }, [data, parity, step]);
 
-    // Updated highlights to use solid colors matching the new scheme
-    const interleavedHighlights = useMemo(() => ([
-        { index: 0, length: 3, color: 'bg-cyan-600 text-white shadow-sm ring-1 ring-white/10', label: 'Data' },
-        { index: 3, length: 1, color: 'bg-rose-600 text-white shadow-sm ring-1 ring-white/10', label: 'Parity' },
+    const fecHighlights = useMemo(() => ([
+        { index: 0, length: 96, color: 'bg-indigo-600/20 text-indigo-400 ring-1 ring-indigo-500/30', label: 'Whitened Data' },
+        { index: 96, length: 32, color: 'bg-rose-600/20 text-rose-400 ring-1 ring-rose-500/30', label: 'RS Parity' },
     ]), []);
 
-    const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setStep(Number(e.target.value));
-    };
-
-    const sourceDataChunks = useMemo(() => Array.from({ length: 32 }, (_, i) => data.slice(i * 3, i * 3 + 3)), [data]);
-
     return (
-        <div className="bg-neutral-900/30 p-6 rounded-xl border border-neutral-800 space-y-8">
-            <div className="space-y-3">
-                <div className="flex justify-between items-center text-xs text-neutral-400 font-medium uppercase tracking-wide">
-                    <span>Interleaving Progress</span>
-                    <span className="bg-neutral-800 px-2 py-1 rounded text-neutral-300">Block {step} / {totalSteps}</span>
+        <div className="bg-zinc-950 p-8 rounded-2xl border border-zinc-800 space-y-8 shadow-2xl">
+            <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                    <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]"></span>
+                        FEC Encoding Process
+                    </h3>
+                    <span className="text-[10px] font-mono text-zinc-400 bg-zinc-900 px-3 py-1 rounded-full border border-zinc-800">
+                        Parity Bytes Attached: {step} / 32
+                    </span>
                 </div>
-                <div className="flex items-center gap-4">
+
+                <div className="flex items-center gap-6">
                     <input
                         type="range"
                         min="0"
-                        max={totalSteps}
+                        max={32}
                         value={step}
-                        onChange={handleSliderChange}
-                        className="flex-grow w-full h-2 bg-neutral-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-                        aria-label="Interleaving step slider"
+                        onChange={(e) => setStep(Number(e.target.value))}
+                        className="flex-grow h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-rose-500"
                     />
                 </div>
             </div>
 
-            {step < totalSteps && (
-                <div className="animate-fade-in">
-                    <h4 className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-3 pl-1">Processing Block {step + 1}</h4>
-                    <div className="flex items-center justify-center gap-4 sm:gap-8 p-6 bg-black/20 border border-neutral-800 rounded-xl">
-                        <div className="flex flex-col items-center gap-3">
-                            <span className="text-[10px] uppercase text-cyan-500 font-bold tracking-wide">Payload Chunk (3B)</span>
-                            <div className="flex items-center gap-2">
-                                {Array.from(sourceDataChunks[step] || [0,0,0]).map((byte, i) => (
-                                <Byte key={i} value={byte} type="data" isVisible={true} />
-                                ))}
-                            </div>
-                        </div>
-                        <div className="text-2xl text-neutral-600 font-light mt-6">+</div>
-                        <div className="flex flex-col items-center gap-3">
-                            <span className="text-[10px] uppercase text-rose-500 font-bold tracking-wide">Parity (1B)</span>
-                            <div className="flex items-center">
-                                <Byte value={parity[step] || 0} type="parity" isVisible={true} />
-                            </div>
-                        </div>
+            <div className="grid grid-cols-1 md:grid-cols-[1fr,300px] gap-8">
+                <div className="space-y-4">
+                    <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">Phy Layer Frame Buffer</h4>
+                    <div className="bg-black/40 p-4 rounded-xl border border-zinc-900 shadow-inner">
+                        <HexDump
+                            data={visibleData}
+                            highlights={fecHighlights}
+                            bytesPerRow={16}
+                            showContainer={false}
+                        />
                     </div>
                 </div>
-            )}
 
-            <div>
-                <h4 className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-3 pl-1">Interleaved Output Frame</h4>
-                <div className="p-1">
-                    <HexDump
-                        data={visibleData}
-                        highlights={interleavedHighlights}
-                        bytesPerRow={16}
-                        showContainer={true}
-                    />
-                </div>
-            </div>
-             <div className="mt-4 pt-4 border-t border-neutral-800">
-                <div className="flex items-start gap-3 text-xs text-neutral-400">
-                    <InfoIcon className="w-4 h-4 text-neutral-500 flex-shrink-0 mt-0.5" />
-                    <div className="leading-relaxed">
-                        <span className="font-semibold text-neutral-200">FEC Strategy:</span> Data is interleaved by taking <span className="text-cyan-400 font-bold">3 bytes of payload</span> followed by <span className="text-rose-400 font-bold">1 byte of parity</span>. This spreads the parity information throughout the frame. If a burst of noise corrupts a few consecutive bytes, the damage is distributed among different Reed-Solomon codewords, making error correction far more effective.
+                <div className="bg-zinc-900/40 p-6 rounded-2xl border border-zinc-800 flex flex-col justify-center space-y-4">
+                    <div className="space-y-1">
+                        <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block">Input Payload</span>
+                        <p className="text-xs text-zinc-400 font-medium leading-relaxed">96 bytes of whitened data (Header + Encrypted Payload + MAC).</p>
+                    </div>
+
+                    <div className="h-px bg-zinc-800 flex-grow max-h-px my-2"></div>
+
+                    <div className="space-y-1">
+                        <span className="text-[10px] font-bold text-rose-400 uppercase tracking-widest block">RS Redundancy</span>
+                        <p className="text-xs text-zinc-400 font-medium leading-relaxed">32 bytes of Reed-Solomon (128, 96) parity appended for error correction.</p>
+                    </div>
+
+                    <div className="mt-4 p-4 bg-indigo-500/5 rounded-xl border border-indigo-500/20">
+                        <div className="flex items-center gap-2 mb-2">
+                            <InfoIcon className="w-3.5 h-3.5 text-indigo-400" />
+                            <span className="text-[9px] font-black text-indigo-300 uppercase tracking-widest">Protocol Tip</span>
+                        </div>
+                        <p className="text-[10px] leading-relaxed text-zinc-400 font-medium italic">
+                            By placing FEC last, we protect the entire frame against burst noise without the risk of scrambling logic multiplying single-bit errors.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -123,4 +106,4 @@ const InterleavingVisualizer: React.FC<InterleavingVisualizerProps> = ({ data, p
     );
 };
 
-export default InterleavingVisualizer;
+export default FecVisualizer;

@@ -3,9 +3,9 @@ import React from 'react';
 export const ProtocolStackHero = () => {
     const layers = [
         { name: 'Application', details: 'Message, Telemetry, Discovery payloads', l: '7' },
-        { name: 'Transport', details: '26-byte Header, 96-bit Nonce, Addressing', l: '4' },
+        { name: 'Transport', details: '24-byte Header, 48-bit Packet ID, Addressing', l: '4' },
         { name: 'Security', details: 'ChaCha20-Poly1305 AEAD Integrity', l: '3' },
-        { name: 'Data Link', details: 'RS(128,96) FEC, 3:1 Interleaving, NRZI', l: '2' },
+        { name: 'Data Link', details: 'RS(128,96) FEC, PN15 Whitening', l: '2' },
         { name: 'Physical', details: 'FSK 1200bps, BK4819 Front-end', l: '1' },
     ];
 
@@ -27,7 +27,7 @@ export const ProtocolStackHero = () => {
                     </div>
                 ))}
             </div>
-           
+
         </div>
     );
 };
@@ -72,15 +72,15 @@ export const PacketStructureVisual = () => {
                 {/* Subtext info */}
                 <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border/40">
                     <div className="space-y-1">
-                        <div className="text-[10px] font-bold uppercase tracking-tighter opacity-80">Modulation Efficiency</div>
+                        <div className="text-[10px] font-bold uppercase tracking-tighter opacity-80">Spectral Integrity</div>
                         <div className="text-[10px] text-muted-foreground leading-relaxed">
-                            FSK 1200bps @ 2.2kHz Shift. NRZI encoding for clock recovery over unstable drift.
+                            FSK 1200bps @ 2.2kHz Shift. PN15 Scrambling ensures DC neutrality across long packets.
                         </div>
                     </div>
                     <div className="space-y-1">
                         <div className="text-[10px] font-bold uppercase tracking-tighter opacity-80">Robustness Factors</div>
                         <div className="text-[10px] text-muted-foreground leading-relaxed">
-                            RS(128,96) combined with PN15 whitening provides -125dBm sensitivity floor.
+                            RS(128,96) FEC provides autonomous recovery of up to 16 symbols / 12% frame corruption.
                         </div>
                     </div>
                 </div>

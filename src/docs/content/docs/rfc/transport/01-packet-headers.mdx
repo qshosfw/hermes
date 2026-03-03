@@ -1,0 +1,71 @@
+---
+title: Packet Headers
+description: Bit-level schematic of the 24-byte Hermes transport header
+---
+
+import HeaderExplorerMDX from '@/components/visualizer/HeaderExplorerMDX';
+import { Layout, Grid, Info } from 'lucide-react';
+
+# <Layout className="inline w-6 h-6 mr-2 text-blue-400" /> 1. Packet Headers
+
+Every Hermes packet begins with a standardized 24-byte header. This header is optimized for routing efficiency while providing enough metadata for fragment reassembly and cryptographic nonce derivation.
+
+## 1.1 Header Schematic (24 Bytes)
+
+The header is structured to place routing-critical information at the very beginning to allow early-exit filtering in hardware.
+
+| Byte Offset | Field Name | Bits | Description |
+| :--- | :--- | :--- | :--- |
+| **0** | **Control 0** | 8 | Payload Type (4b), TTL (4b) |
+| **1** | **Control 1** | 8 | Addressing (2b), Ack (1b), Frag Index (4b), Last (1b) |
+| **2 - 7** | **Packet ID** | 48 | Globally unique identifier |
+| **8 - 13** | **Destination** | 48 | Target Address (Node or Subnet) |
+| **14 - 19** | **Source Address** | 48 | Sender Address (Sealed/Obfuscated) |
+| **20 - 23** | **Hop Nonce** | 32 | Per-hop randomization value |
+
+## 1.2 Interactive Header Map
+
+<HeaderExplorerMDX />
+
+## 1.3 Control Byte Bitfields
+
+The first two bytes provide dense routing and fragmentation metadata.
+
+### 1.3.1 Control Byte 0 (Routing & Lifecycle)
+| Bits | Name | Description |
+| :--- | :--- | :--- |
+| 7:4 | **Type** | Payload type (Message, ACK, etc.) |
+| 3:0 | **TTL** | Time-To-Live (Max 15 hops) |
+
+### 1.3.2 Control Byte 1 (Fragmentation & Policy)
+| Bits | Name | Description |
+| :--- | :--- | :--- |
+| 7:6 | **Mode** | Addressing Mode (Unicast, Multicast, Broadcast) |
+| 5 | **ACK** | Request acknowledgement from destination |
+| 4:1 | **Frag Idx** | Fragment number (0-15) |
+| 0 | **Last** | Last fragment flag |
+
+## 1.3 Field Definitions
+
+### 1.3.1 Payload Type (4 bits)
+Defines how the subsequent 56-byte payload should be interpreted by the application layer.
+
+| Value | Type | Description |
+| :--- | :--- | :--- |
+| `0x1` | **ACK** | Acknowledgment of a previous packet. |
+| `0x2` | **Message** | Human-readable text or data. |
+| `0x3` | **Telemetry** | System status or sensor reports. |
+| `0x4` | **Discovery** | Mesh neighbor announcements. |
+
+### 1.3.2 Addressing Mode (2 bits)
+Determines the routing behavior and key derivation ($K_{scope}$).
+
+| Value | Mode | Description |
+| :--- | :--- | :--- |
+| `0b00` | **Unicast** | 1-to-1 private communication. |
+| `0b01` | **Multicast** | Group/Channel communication. |
+| `0b10` | **Broadcast** | Delivered to all nodes. |
+| `0b11` | **Reserved** | Future Use. |
+
+> [!NOTE]
+> Even though the **Source** address is part of the header, it is shifted by the `Traffic Key` ($K_{scope}$) to provide **Sealed Sender** privacy. Only the Destination and Routing metadata remain in cleartext (well, obfuscated by $K_{mesh}$).

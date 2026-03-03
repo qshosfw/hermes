@@ -2,7 +2,7 @@ import { PacketHeaderConfig, AckedPacketInfo, PacketType, TelemetryPacketInfo, A
 import { Poly1305 } from "@stablelib/poly1305";
 
 export const bytesToHex = (bytes: Uint8Array): string =>
-  Array.from(bytes).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+    Array.from(bytes).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
 
 export const hexToBytes = (hex: string, requiredLength?: number): Uint8Array => {
     const cleanHex = hex.replace(/\s/g, '');
@@ -19,11 +19,11 @@ export const hexToBytes = (hex: string, requiredLength?: number): Uint8Array => 
 };
 
 export const textToBytes = (text: string, length: number): Uint8Array => {
-  const encoder = new TextEncoder();
-  const encoded = encoder.encode(text);
-  const buffer = new Uint8Array(length);
-  buffer.set(encoded.slice(0, length));
-  return buffer;
+    const encoder = new TextEncoder();
+    const encoded = encoder.encode(text);
+    const buffer = new Uint8Array(length);
+    buffer.set(encoded.slice(0, length));
+    return buffer;
 };
 
 export const bytesToText = (bytes: Uint8Array): string => {
@@ -47,7 +47,7 @@ const BASE40_CHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ-0123456789./";
 export const callsignToBytes = (callsign: string): Uint8Array => {
     const padded = callsign.toUpperCase().padEnd(6, ' ');
     let address = 0n;
-    
+
     // Per M17 spec: encode backwards from right to left (Horner's method on the reversed string)
     // This is equivalent to `c0*40^0 + c1*40^1 + ...`
     for (let i = 5; i >= 0; i--) {
@@ -69,7 +69,7 @@ export const bytesToCallsign = (bytes: Uint8Array): string => {
     for (let i = 0; i < 6; i++) {
         address = (address << 8n) + BigInt(bytes[i]);
     }
-    
+
     if (address === 0n) return "";
 
     let callsign = "";
@@ -85,18 +85,18 @@ export const bytesToCallsign = (bytes: Uint8Array): string => {
 
 
 const buildHeader = (config: PacketHeaderConfig): Uint8Array => {
-  const header = new Uint8Array(26);
-  // Byte 0: Type (5 bits) | TTL (3 bits)
-  header[0] = (config.type << 3) | config.ttl;
-  // Byte 1: Addressing (2 bits) | Want Ack (1 bit) | Fragment Index (4 bits) | Last Fragment (1 bit)
-  header[1] = (config.addressing << 6) | ((config.wantAck ? 1 : 0) << 5) | (config.fragmentIndex << 1) | (config.lastFragment ? 1 : 0);
-  // Bytes 2-13: Nonce (12 bytes)
-  header.set(config.nonce, 2);
-  // Bytes 14-19: Destination (6 bytes)
-  header.set(config.destination, 14);
-  // Bytes 20-25: Source (6 bytes)
-  header.set(config.source, 20);
-  return header;
+    const header = new Uint8Array(26);
+    // Byte 0: Type (5 bits) | TTL (3 bits)
+    header[0] = (config.type << 3) | config.ttl;
+    // Byte 1: Addressing (2 bits) | Want Ack (1 bit) | Fragment Index (4 bits) | Last Fragment (1 bit)
+    header[1] = (config.addressing << 6) | ((config.wantAck ? 1 : 0) << 5) | (config.fragmentIndex << 1) | (config.lastFragment ? 1 : 0);
+    // Bytes 2-13: Nonce (12 bytes)
+    header.set(config.nonce, 2);
+    // Bytes 14-19: Destination (6 bytes)
+    header.set(config.destination, 14);
+    // Bytes 20-25: Source (6 bytes)
+    header.set(config.source, 20);
+    return header;
 };
 
 export const parseHeader = (buffer: Uint8Array): PacketHeaderConfig => {
@@ -109,7 +109,7 @@ export const parseHeader = (buffer: Uint8Array): PacketHeaderConfig => {
     const nonce = buffer.slice(2, 14);
     const destination = buffer.slice(14, 20);
     const source = buffer.slice(20, 26);
-    
+
     return { type, ttl, addressing, wantAck, fragmentIndex, lastFragment, nonce, destination, source };
 };
 
@@ -158,7 +158,7 @@ export const buildRawPacket = (config: PacketHeaderConfig, payload: Uint8Array, 
         payload = resized;
     }
     const signature = calculatePoly1305(header, payload, sharedSecret);
-    
+
     const data = new Uint8Array(96);
     data.set(header, 0);
     data.set(payload, 26);
@@ -205,7 +205,7 @@ export const buildAckPacket = (
         const ackedRssiVal = toRssiVal(ackedInfo.ackedRssi);
         const ackingRssiVal = toRssiVal(ackedInfo.ackingRssi);
         const idleRssiVal = toRssiVal(ackedInfo.idleRssi);
-        
+
         payload[29] = (ackedInfo.hasBattery ? 0x80 : 0) | (ackedInfo.batteryVoltage & 0x7F);
         payload[30] = (ackedRssiVal << 1) | ((ackingRssiVal >> 6) & 0x01);
         payload[31] = ((ackingRssiVal & 0x3F) << 2) | ((idleRssiVal >> 5) & 0x03);
@@ -255,7 +255,7 @@ export const buildAckPacket = (
 export const parseAckPayload = (payload: Uint8Array): AckedPacketInfo => {
     const nonce = payload.slice(0, 12);
     const signature = payload.slice(12, 28);
-    
+
     const bitfields = payload[28];
     const fragmentIndex = (bitfields >> 4) & 0x0F;
     const lastFragment = ((bitfields >> 3) & 0x01) === 1;
@@ -301,7 +301,7 @@ export const parseAckPayload = (payload: Uint8Array): AckedPacketInfo => {
         const ackedRssiVal = (byte30 >> 1) & 0x7F;
         const ackingRssiVal = ((byte30 & 0x01) << 6) | ((byte31 >> 2) & 0x3F);
         const idleRssiVal = ((byte31 & 0x03) << 5) | ((byte32 >> 3) & 0x1F);
-        
+
         info.prevLqi = ((byte32 & 0x07) << 4) | ((byte33 >> 4) & 0x0F);
         info.txPowerLevel = byte33 & 0x0F;
 
@@ -315,7 +315,7 @@ export const parseAckPayload = (payload: Uint8Array): AckedPacketInfo => {
         for (let i = 0; i < 17; i++) {
             packed = (packed << 8n) | BigInt(payload[34 + i]);
         }
-        
+
         const qprec = Number(packed & 0xFFn); packed >>= 8n;
         const qsats = Number(packed & 0x3Fn); packed >>= 6n;
         const qhead = Number(packed & 0xFFFn); packed >>= 12n;
@@ -352,20 +352,20 @@ export const buildTelemetryPayload = (telemetryInfo: TelemetryPacketInfo): Uint8
 
     // Uptime (3 bytes, 24-bit) - Big Endian
     const uptimeTicks = telemetryInfo.uptime;
-    view.setUint8(offset,     (uptimeTicks >>> 16) & 0xFF);
-    view.setUint8(offset + 1, (uptimeTicks >>> 8)  & 0xFF);
-    view.setUint8(offset + 2, uptimeTicks          & 0xFF);
+    view.setUint8(offset, (uptimeTicks >>> 16) & 0xFF);
+    view.setUint8(offset + 1, (uptimeTicks >>> 8) & 0xFF);
+    view.setUint8(offset + 2, uptimeTicks & 0xFF);
     offset += 3;
 
     // Flags (1 byte)
     const flags = (telemetryInfo.flags.hasBattery ? 0b10000000 : 0) |
-                  (telemetryInfo.flags.hasLocation ? 0b01000000 : 0) |
-                  (telemetryInfo.flags.hasHygrometer ? 0b00100000 : 0) |
-                  (telemetryInfo.flags.hasGasSensor ? 0b00010000 : 0) |
-                  (telemetryInfo.flags.hasLuxSensor ? 0b00001000 : 0) |
-                  (telemetryInfo.flags.hasUvSensor ? 0b00000100 : 0) |
-                  (telemetryInfo.flags.hasMovementSensor ? 0b00000010 : 0) |
-                  (telemetryInfo.flags.isCustomData ? 0b00000001 : 0);
+        (telemetryInfo.flags.hasLocation ? 0b01000000 : 0) |
+        (telemetryInfo.flags.hasHygrometer ? 0b00100000 : 0) |
+        (telemetryInfo.flags.hasGasSensor ? 0b00010000 : 0) |
+        (telemetryInfo.flags.hasLuxSensor ? 0b00001000 : 0) |
+        (telemetryInfo.flags.hasUvSensor ? 0b00000100 : 0) |
+        (telemetryInfo.flags.hasMovementSensor ? 0b00000010 : 0) |
+        (telemetryInfo.flags.isCustomData ? 0b00000001 : 0);
     view.setUint8(offset, flags);
     offset += 1;
 
@@ -417,7 +417,7 @@ export const buildTelemetryPayload = (telemetryInfo: TelemetryPacketInfo): Uint8
         view.setInt16(offset + 2, telemetryInfo.temperature, false);
         offset += 4;
     }
-    
+
     if (telemetryInfo.flags.hasGasSensor && offset + 4 <= 54) {
         view.setUint16(offset, telemetryInfo.gasPpm, false);
         view.setUint16(offset + 2, telemetryInfo.pressureHpa, false);
@@ -428,7 +428,7 @@ export const buildTelemetryPayload = (telemetryInfo: TelemetryPacketInfo): Uint8
         view.setUint16(offset, telemetryInfo.lux, false);
         offset += 2;
     }
-    
+
     if (telemetryInfo.flags.hasUvSensor && offset + 2 <= 54) {
         view.setUint16(offset, telemetryInfo.uvIndex, false);
         offset += 2;
@@ -449,7 +449,7 @@ export const parseTelemetryPayload = (payload: Uint8Array): TelemetryPacketInfo 
     const tag = bytesToText(payload.slice(0, 17));
     offset += 17;
 
-    const uptime = (view.getUint8(offset) << 16) | (view.getUint8(offset+1) << 8) | view.getUint8(offset+2);
+    const uptime = (view.getUint8(offset) << 16) | (view.getUint8(offset + 1) << 8) | view.getUint8(offset + 2);
     offset += 3;
 
     const flagByte = view.getUint8(offset);
@@ -509,7 +509,7 @@ export const parseTelemetryPayload = (payload: Uint8Array): TelemetryPacketInfo 
         for (let i = 0; i < 17; i++) {
             packed = (packed << 8n) | BigInt(payload[offset + i]);
         }
-        
+
         const qprec = Number(packed & 0xFFn); packed >>= 8n;
         const qsats = Number(packed & 0x3Fn); packed >>= 6n;
         const qhead = Number(packed & 0xFFFn); packed >>= 12n;
@@ -568,31 +568,12 @@ export const reedSolomonEncode = (data: Uint8Array): { data: Uint8Array, parity:
     // Simulate parity generation. In a real scenario, this would be calculated.
     // We'll create a simple pattern for visualization.
     const parity = new Uint8Array(32);
-    for(let i=0; i<32; i++){
+    for (let i = 0; i < 32; i++) {
         parity[i] = (0xDA + i) % 256;
     }
     return { data, parity };
 };
 
-// 3:1 data/parity interleaving
-export const interleave = (data: Uint8Array, parity: Uint8Array): Uint8Array => {
-    const interleaved = new Uint8Array(128);
-    for (let i = 0; i < 32; i++) {
-        interleaved.set(data.slice(i * 3, i * 3 + 3), i * 4);
-        interleaved[i * 4 + 3] = parity[i];
-    }
-    return interleaved;
-};
-
-export const deInterleave = (interleaved: Uint8Array): { data: Uint8Array, parity: Uint8Array } => {
-    const data = new Uint8Array(96);
-    const parity = new Uint8Array(32);
-    for (let i = 0; i < 32; i++) {
-        data.set(interleaved.slice(i * 4, i * 4 + 3), i * 3);
-        parity[i] = interleaved[i * 4 + 3];
-    }
-    return { data, parity };
-};
 
 /**
  * Generates a pseudo-random byte sequence using a PN15 LFSR (x^15 + x^14 + 1).
@@ -610,10 +591,10 @@ export const generatePn15Sequence = (length: number, initialState = 0x4224): Uin
             // Output the MSB of the 15-bit LFSR
             const outputBit = (lfsr >> 14) & 1;
             byte = (byte << 1) | outputBit;
-            
+
             // Calculate the new bit to shift in (tap at x^15 and x^14)
             const newBit = ((lfsr >> 14) ^ (lfsr >> 13)) & 1;
-            
+
             // Shift left and add the new bit
             lfsr = ((lfsr << 1) | newBit) & 0x7FFF;
         }
@@ -629,21 +610,4 @@ export const whiten = (data: Uint8Array, syncWord: Uint8Array, pn15Sequence: Uin
         whitened[i] = data[i] ^ syncByte ^ pn15Sequence[i];
     }
     return whitened;
-};
-
-export const nrziEncode = (data: Uint8Array): number[] => {
-    let lastLevel = 1;
-    const levels: number[] = [];
-
-    for (let i = 0; i < data.length; i++) {
-        for (let j = 7; j >= 0; j--) {
-            const bit = (data[i] >> j) & 1;
-            if (bit === 0) { // 0 -> transition
-                lastLevel *= -1;
-            }
-            // 1 -> no transition
-            levels.push(lastLevel);
-        }
-    }
-    return levels;
 };

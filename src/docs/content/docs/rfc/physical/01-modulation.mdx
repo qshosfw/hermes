@@ -1,0 +1,65 @@
+---
+title: FSK Modulation
+description: RF parameters, frequency deviation, and symbol timing for Hermes Link
+---
+
+import PsdGraphMDX from '@/components/visualizer/PsdGraphMDX';
+import { RadioTower, Cpu, Zap } from 'lucide-react';
+
+# <RadioTower className="inline w-6 h-6 mr-2 text-blue-400" /> 1. Modulation Specifications
+
+The Hermes Link protocol utilizes Binary Frequency Shift Keying (2-FSK) as its standard air interface. 2-FSK was selected for its balance between spectral efficiency and robustness against multi-path fading and localized interference in the VHF/UHF bands.
+
+## 1.1 Technical Parameters
+
+| Parameter | Specification | Register (BK4819) | Value |
+| :--- | :--- | :--- | :--- |
+| **Baud Rate** | 1200 bps | `REG_72` | `0x3065` |
+| **TX Mode** | FFSK 1200/1800 | `REG_58<15:13>` | `1` |
+| **RX Mode** | FFSK 1200/1800 | `REG_58<12:10>`| `7` |
+| **RX Bandwidth**| FFSK 1200/1800 | `REG_58<3:1>` | `1` |
+| **Tuning Gain** | Tone2/FSK | `REG_70<6:0>` | `96` |
+
+## 1.2 Transceiver Configuration
+
+The following C implementation demonstrates the precise initialization of the BK4819 registers for **FFSK 1200bps** (Fast Frequency Shift Keying), which uses 1200Hz and 1800Hz tones.
+
+```c
+/**
+ * @brief Initializes the BK4819 for Hermes FSK1200 mode.
+ */
+void BK4819_Init_FSK1200(bool rx) {
+    // 1. Configure Tone2 for 1200Hz Baudrate
+    // Frequency Word = freq(Hz) * 10.32444 (for 26MHz XTAL)
+    BK4819_WriteRegister(BK4819_REG_72, 0x3065); 
+
+    // 2. Enable Tone2 and set Tuning Gain to 96
+    BK4819_WriteRegister(BK4819_REG_70, (1u << 7) | (96u << 0));
+
+    // 3. Configure Modem Mode (REG_58)
+    BK4819_WriteRegister(BK4819_REG_58,
+        (1u << 13) | // TX Mode: FFSK 1200/1800
+        (7u << 10) | // RX Mode: FFSK 1200/1800
+        (3u << 8)  | // RX Gain: 3
+        (0u << 4)  | // Preamble: 0xAA or 0x55
+        (1u << 1)  | // Bandwidth: FFSK 1200/1800
+        (1u << 0)    // Enable FSK
+    );
+    
+    // 4. Set Sync Words (0x5555 55AA default for standard FSK)
+    BK4819_WriteRegister(BK4819_REG_5A, 0x5555);
+    BK4819_WriteRegister(BK4819_REG_5B, 0x55AA);
+
+    // 5. Disable Hardware CRC (handled by L2 Software)
+    BK4819_WriteRegister(BK4819_REG_5C, 0x5625);
+}
+```
+
+## 1.3 Power Spectral Density (PSD)
+
+The Power Spectral Density of the Hermes signal is optimized for high sensitivity. By concentrating the energy in a narrow 1.2kHz window, the protocol can extract data from signal levels approaching the thermal noise floor (-120 dBm or lower on optimized hardware).
+
+<PsdGraphMDX />
+
+> [!NOTE]
+> Future extensions of the protocol may support GFSK (Gaussian-filtered FSK) to further reduce side-lobe emissions, though standard FSK remains the primary baseline for maximum compatibility with legacy BK4819 firmware implementations.

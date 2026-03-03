@@ -9,9 +9,14 @@ import { useFumadocsLoader } from 'fumadocs-core/source/client';
 import { LLMCopyButton, ViewOptions } from '@/components/ai/page-actions';
 
 export async function loader({ params }: Route.LoaderArgs) {
+  console.log('Docs Loader Params:', params);
   const slugs = params['*'].split('/').filter((v) => v.length > 0);
+  console.log('Docs Loader Slugs:', slugs);
   const page = source.getPage(slugs);
-  if (!page) throw new Response('Not found', { status: 404 });
+  if (!page) {
+    console.error('Page not found for slugs:', slugs);
+    throw new Response('Not found', { status: 404 });
+  }
 
   return {
     slugs: page.slugs,

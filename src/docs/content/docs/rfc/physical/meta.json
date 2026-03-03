@@ -1,0 +1,9 @@
+{
+    "title": "Physical Layer",
+    "pages": [
+        "01-modulation",
+        "02-pulse-shaping",
+        "03-preamble-sync",
+        "04-bk4819-registers"
+    ]
+}

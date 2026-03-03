@@ -1,0 +1,73 @@
+---
+title: Encryption Pipeline
+description: Step-by-step transformation of a Hermes packet
+---
+
+import { Zap, Shield, Eye, Lock } from 'lucide-react';
+import NestedTrustVisualizerMDX from '@/components/visualizer/NestedTrustVisualizerMDX';
+
+# <Zap className="inline w-6 h-6 mr-2 text-yellow-400" /> 4. Encryption Pipeline
+
+To understand Hermes security, we must trace a 56-byte message through its transformation from plaintext to radio waves.
+
+## 4.1 Step 1: End-to-End AEAD (Inner Layer)
+**Goal**: Privacy between sender and recipient.
+
+1. The sender generates a **96-bit Random Nonce**.
+2. The sender derives $K_{scope}$ using $K_{mesh}$ and the **Destination ID**.
+3. The **56-byte Payload** and the **Source ID** are encrypted using **ChaCha20-Poly1305**.
+4. **Result**: A 64-byte cipher block containing the encrypted payload and an 8-byte authentication tag.
+
+## 4.2 Step 2: Mesh Obfuscation (Outer Layer)
+**Goal**: Hide routing metadata and signatures from passive listeners.
+
+1. The sender (or router) generates a **32-bit Hop Nonce**.
+2. A **Mesh Keystream** is generated using $K_{mesh}$ and the **Hop Nonce**.
+3. The **Header** (excluding the Hop Nonce itself) and the **Inner Cipher block** are XORed with this keystream.
+4. **Result**: A 96-byte obfuscated block where every individual bit appears random.
+
+## 4.3 Step 3: LFSR Whitening (Physical Layer)
+**Goal**: Spectral integrity and DC bias elimination for the radio hardware.
+
+1. The 96-byte packet is XORed with a **PN15 LFSR sequence** (x^15 + x^14 + 1).
+2. **Result**: Final bitstream ready for FSK modulation.
+
+---
+
+## 4.4 Visual Transformation Summary
+
+| Stage | Data State | Visibility | Key Used |
+| :--- | :--- | :--- | :--- |
+| **Input** | `Hello World` | 🟢 Plaintext | None |
+| **Inner AEAD** | `[Encrypted Blob]` | 🔴 Ciphertext | $K_{scope}$ |
+| **Outer Shroud**| `[Random Fluctuation]` | 🔴 Obfuscated | $K_{mesh}$ + Hop Nonce |
+| **Physical** | `[Radio Bits]` | 🔴 Scrambled | PN15 LFSR |
+
+## 4.5 Security Properties
+
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+    <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-lg">
+        <h4 className="flex items-center text-blue-400 font-bold mb-2">
+            <Lock className="w-4 h-4 mr-2" /> Confidentiality
+        </h4>
+        <p className="text-xs text-neutral-400">Only the holder of the specific Scope Secret can read the actual message payload.</p>
+    </div>
+    <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-lg">
+        <h4 className="flex items-center text-emerald-400 font-bold mb-2">
+            <Shield className="w-4 h-4 mr-2" /> Integrity
+        </h4>
+        <p className="text-xs text-neutral-400">If even a single bit is flipped in transit, the $K_{mesh}$ Poly1305 MAC will fail, and the packet is dropped immediately.</p>
+    </div>
+    <div className="p-4 bg-purple-500/5 border border-purple-500/20 rounded-lg">
+        <h4 className="flex items-center text-purple-400 font-bold mb-2">
+            <Eye className="w-4 h-4 mr-2" /> Anonymity
+        </h4>
+        <p className="text-xs text-neutral-400">Because the Source ID is inside the Inner Layer, observers cannot determine who is talking to whom.</p>
+    </div>
+    <div className="p-4 bg-yellow-500/5 border border-yellow-500/20 rounded-lg">
+        <h4 className="flex items-center text-yellow-400 font-bold mb-2">
+            <Zap className="w-4 h-4 mr-2" /> Resistance
+        </h4>
+        <p className="text-xs text-neutral-400">The use of Hop Nonces at every step makes traffic analysis and replay attacks practically impossible.</p>
+    </div>
+</div>

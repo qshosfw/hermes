@@ -34,17 +34,19 @@ const NestedTrustVisualizer: React.FC = () => {
         return tampered;
     }, [payload, tamperInner]);
 
-    // 2. Outer Layer (Honey-Token Chain)
+    // 2. Outer Layer (Chameleon Skin & Binding)
     const outerMac = useMemo(() => {
-        // Outer IV uses Inner MAC + Hop Nonce
+        // Corrected Outer IV (Visible): Source Prefix + Packet ID + Hop Nonce
         const outerIv = new Uint8Array(12);
-        outerIv.set(innerMac, 0);
+        outerIv.set(source.slice(0, 2), 0);
+        outerIv.set(packetId, 2);
         outerIv.set(hopNonce, 8);
 
-        // Calculate Outer MAC
+        // Calculate Outer MAC over [Header] + [Masked Payload] + [Masked Inner MAC]
+        // In the visualizer, modifiedPayload represents the (possibly tampered) payload
         const mac = calculatePoly1305(header, modifiedPayload, networkKey);
         return mac.slice(0, 8);
-    }, [header, modifiedPayload, innerMac, hopNonce, networkKey]);
+    }, [header, modifiedPayload, source, packetId, hopNonce, networkKey]);
 
     const routerVerification = useMemo(() => {
         if (tamperOuter) return "FAIL";
@@ -130,11 +132,11 @@ const NestedTrustVisualizer: React.FC = () => {
 
                     {/* Destination */}
                     <div className={`w-full md:w-1/3 p-4 bg-neutral-800/30 border rounded-lg flex flex-col items-center gap-3 transition-all ${destinationVerification === "PASS" ? 'border-emerald-900/50' :
-                            destinationVerification === "BLOCK" ? 'border-neutral-800 opacity-40' : 'border-rose-900 bg-rose-950/20'
+                        destinationVerification === "BLOCK" ? 'border-neutral-800 opacity-40' : 'border-rose-900 bg-rose-950/20'
                         }`}>
                         <div className="flex items-center gap-2">
                             <Lock className={`w-6 h-6 ${destinationVerification === "PASS" ? 'text-blue-500' :
-                                    destinationVerification === "BLOCK" ? 'text-neutral-600' : 'text-rose-500'
+                                destinationVerification === "BLOCK" ? 'text-neutral-600' : 'text-rose-500'
                                 }`} />
                             <span className="text-xs font-bold uppercase tracking-widest text-neutral-300">Recipient Node</span>
                         </div>
@@ -151,7 +153,7 @@ const NestedTrustVisualizer: React.FC = () => {
                             </div>
                             <div className="h-1 w-full bg-neutral-700 rounded-full overflow-hidden">
                                 <div className={`h-full transition-all duration-500 ${destinationVerification === "PASS" ? 'w-full bg-emerald-500' :
-                                        destinationVerification === "BLOCK" ? 'w-0' : 'w-1/2 bg-rose-500'
+                                    destinationVerification === "BLOCK" ? 'w-0' : 'w-1/2 bg-rose-500'
                                     }`}></div>
                             </div>
                         </div>
@@ -197,25 +199,30 @@ const NestedTrustVisualizer: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Outer Cryptography (The Honey-Token) */}
+                    {/* Outer Cryptography (Invisible Binding) */}
                     <div className="bg-neutral-950/50 p-4 rounded-lg border border-neutral-800 space-y-3">
                         <div className="flex items-center justify-between">
-                            <h4 className="text-[10px] uppercase font-bold text-purple-400 tracking-wider">Outer Layer (Honey-Token Chain)</h4>
+                            <h4 className="text-[10px] uppercase font-bold text-purple-400 tracking-wider">Outer Layer (Honey-Token Binding)</h4>
                             <div className="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 text-[9px] font-mono">Network Key: Base</div>
                         </div>
                         <div className="space-y-2 text-xs">
                             <div className="flex justify-between items-center">
-                                <span className="text-neutral-500 italic">Outer IV Composition:</span>
+                                <span className="text-neutral-500 italic">Visible Nonce (Outer IV):</span>
                             </div>
                             <div className="flex justify-between items-center bg-purple-500/5 p-1.5 rounded border border-purple-500/10">
                                 <div className="flex flex-col">
-                                    <span className="text-[8px] uppercase text-purple-500/70">Inner MAC</span>
-                                    <span className="font-mono text-neutral-300">{bytesToHex(innerMac)}</span>
+                                    <span className="text-[8px] uppercase text-purple-500/70">Source Prefix</span>
+                                    <span className="font-mono text-neutral-300">{bytesToHex(source.slice(0, 2))}</span>
                                 </div>
-                                <span className="text-neutral-600 font-bold px-2">+</span>
+                                <span className="text-neutral-600 font-bold px-1">+</span>
+                                <div className="flex flex-col">
+                                    <span className="text-[8px] uppercase text-purple-500/70">Packet ID</span>
+                                    <span className="font-mono text-neutral-300">{bytesToHex(packetId.slice(0, 2))}...</span>
+                                </div>
+                                <span className="text-neutral-600 font-bold px-1">+</span>
                                 <div className="flex flex-col text-right">
                                     <span className="text-[8px] uppercase text-purple-500/70">Hop Nonce</span>
-                                    <span className="font-mono text-neutral-300">{bytesToHex(hopNonce)}</span>
+                                    <span className="font-mono text-neutral-300">{bytesToHex(hopNonce.slice(0, 2))}</span>
                                 </div>
                             </div>
                         </div>
@@ -229,10 +236,10 @@ const NestedTrustVisualizer: React.FC = () => {
                         {tamperOuter ? (
                             "The router detected that the Outer MAC does not match the header and Network Key. This packet is dropped as garbage or an injection attempt, preventing network congestion from unauthenticated nodes."
                         ) : tamperInner ? (
-                            "The router forwarded the packet because it correctly possesses the Network Key and the header is valid. However, the destination node detected that the application payload was modified. Because only a router could re-sign an authentic header but not re-calculate the Inner MAC, this confirms a specific routing node has been physically compromised."
+                            "The router forwarded the packet because the header and masked bits were consistent with the Network Key. However, the destination node detected that the payload (and thus the Inner MAC) was changed. This confirms a routing node has been compromised."
                         ) : (
                             <>
-                                The 8-byte <strong>Inner MAC</strong> is chained into the <strong>Outer IV</strong>. This "Honey-Token" ensures that if a router attempts to move a valid header to a different payload, the Outer MAC calculation fails.
+                                The <strong>Visible Nonce</strong> allows routers to de-mask the packet instantly. The <strong>Invisible Binding</strong> ensures that if a router swaps the payload, the XORed Inner MAC bits change, causing the Outer MAC (Poly1305) check to fail.
                             </>
                         )}
                     </p>

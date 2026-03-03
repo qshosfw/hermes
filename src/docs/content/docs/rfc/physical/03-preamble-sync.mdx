@@ -1,0 +1,64 @@
+---
+title: Preamble & Sync Word
+description: Detailed analysis of the 0x2F2A11DB synchronization sequence
+---
+
+import SyncWordStatsMDX from '@/components/visualizer/SyncWordStatsMDX';
+import AutocorrelationGraphMDX from '@/components/visualizer/AutocorrelationGraphMDX';
+import { Target, Hash, Info } from 'lucide-react';
+
+# <Target className="inline w-6 h-6 mr-2 text-emerald-400" /> 3. Preamble & Sync Word
+
+Synchronization is the most critical phase of FSK packet reception. Hermes Link employs a high-entropy, hardware-optimized sequence to ensure that packets are only triggered by valid transmissions, minimizing false-wakeups from background static.
+
+## 3.1 Preamble Specifications
+
+The preamble provides the energy needed for the receiver to perform **Carrier Sense (CS)** and **Automatic Gain Control (AGC)** settling.
+
+- **Length**: 16 Bytes (128 bits).
+- **Pattern**: `0xAA` (Binary `10101010`).
+- **Timing**: 106.6 milliseconds at 1.2kbps.
+
+## 3.2 The Sync Word (0x2F2A11DB)
+
+The Sync Word is a 32-bit (4-byte) constant that marks the instantaneous transition from "Carrier Synchronization" to "Data Framing."
+
+```math
+SyncWord = 0x2F2A11DB
+```
+
+### 3.2.1 Why this sequence?
+
+The value `0x2F2A11DB` was selected based on a brute-force search for sequences with:
+1. **Low Cross-Correlation**: Minimal resemblance to the preamble pattern (`0xAA`).
+2. **Sharp Auto-Correlation Peak**: High contrast between partial matches and a full match.
+3. **Hardware Friendliness**: Compatible with the BK4819's internal 32-bit hardware correlator.
+
+### 3.2.2 Correlation Performance
+
+<SyncWordStatsMDX />
+<AutocorrelationGraphMDX />
+
+## 3.3 Hardware Implementation
+
+The following code demonstrates configuring the BK4819 sync registers.
+
+```c
+/**
+ * @brief Sets the 32-bit Sync Word for hardware correlation.
+ */
+void BK4819_SetSyncWord(void) {
+    // Write 0x2F2A
+    BK4819_WriteRegister(0x35, 0x2F2A);
+    // Write 0x11DB
+    BK4819_WriteRegister(0x36, 0x11DB);
+    
+    // Set correlator threshold
+    // 0x00 = Match exactly 32 bits
+    // 0x01 = Allow 1 bit error (more sensitive, but more false-hits)
+    BK4819_WriteRegister(0x37, 0x0000); 
+}
+```
+
+> [!WARNING]
+> While allowing 1-bit tolerance in the sync word (`REG_37 = 0x01`) improves sensitivity in fringe signal areas, it can drastically increase MCU interrupt load due to false-positive packet triggers from atmospheric noise. 

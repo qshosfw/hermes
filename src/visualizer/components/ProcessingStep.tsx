@@ -8,20 +8,20 @@ interface ProcessingStepProps {
 }
 
 const ChevronDownIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.5}
-      stroke="currentColor"
-      {...props}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="m19.5 8.25-7.5 7.5-7.5-7.5"
-      />
-    </svg>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={1.5}
+    stroke="currentColor"
+    {...props}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="m19.5 8.25-7.5 7.5-7.5-7.5"
+    />
+  </svg>
 );
 
 
@@ -31,43 +31,43 @@ const ProcessingStep = forwardRef<HTMLDivElement, ProcessingStepProps>(({ title,
 
   useEffect(() => {
     if (isExpanded) {
-        const timer = setTimeout(() => {
-            setOverflowHidden(false);
-        }, 400); 
-        return () => clearTimeout(timer);
+      const timer = setTimeout(() => {
+        setOverflowHidden(false);
+      }, 400);
+      return () => clearTimeout(timer);
     } else {
-        setOverflowHidden(true);
+      setOverflowHidden(true);
     }
   }, [isExpanded]);
 
 
   return (
-    <div ref={ref} className="bg-neutral-900/30 backdrop-blur-sm rounded-xl border border-neutral-800 overflow-hidden transition-all hover:border-neutral-700 scroll-mt-20">
+    <div ref={ref} className="bg-zinc-900/40 backdrop-blur-md rounded-2xl border border-zinc-800/60 overflow-hidden transition-all hover:border-zinc-700/80 shadow-sm scroll-mt-20">
       <button
         className="w-full flex justify-between items-start p-5 text-left group"
         onClick={() => setIsExpanded(!isExpanded)}
         aria-expanded={isExpanded}
         aria-controls={`step-content-${title.replace(/\s+/g, '-')}`}
       >
-        <div>
-            <h3 className="text-lg font-semibold text-neutral-200 group-hover:text-white transition-colors">{title}</h3>
-            <p className="text-sm text-neutral-500 mt-1 leading-relaxed max-w-3xl">{description}</p>
+        <div className="flex-grow">
+          <h3 className="text-sm font-bold text-zinc-100 tracking-tight transition-colors group-hover:text-white uppercase tracking-widest">{title}</h3>
+          <p className="text-xs text-zinc-500 mt-1.5 leading-relaxed max-w-2xl font-medium">{description}</p>
         </div>
-        <div className={`mt-1 p-1 rounded-full border border-neutral-800 bg-neutral-900 transition-all ${isExpanded ? 'bg-neutral-800 text-white' : 'text-neutral-500 group-hover:text-neutral-300'}`}>
-            <ChevronDownIcon 
-                className={`w-4 h-4 transition-transform duration-300 ${isExpanded ? 'rotate-180' : 'rotate-0'}`} 
-            />
+        <div className={`mt-0.5 p-1.5 rounded-lg border border-zinc-800 bg-zinc-950 transition-all ${isExpanded ? 'bg-zinc-800 text-white border-zinc-700' : 'text-zinc-500 group-hover:text-zinc-300 group-hover:bg-zinc-900'}`}>
+          <ChevronDownIcon
+            className={`w-3.5 h-3.5 transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isExpanded ? 'rotate-180' : 'rotate-0'}`}
+          />
         </div>
       </button>
-      
-      <div 
+
+      <div
         id={`step-content-${title.replace(/\s+/g, '-')}`}
         className={`transition-all duration-400 ease-out grid ${isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
       >
         <div className={`min-h-0 ${overflowHidden ? 'overflow-hidden' : ''}`}>
-            <div className="px-5 pb-5 pt-0 border-t border-neutral-800/50 mt-2">
-              <div className="pt-4">{children}</div>
-            </div>
+          <div className="px-5 pb-6 pt-0 border-t border-zinc-800/40">
+            <div className="pt-6">{children}</div>
+          </div>
         </div>
       </div>
     </div>

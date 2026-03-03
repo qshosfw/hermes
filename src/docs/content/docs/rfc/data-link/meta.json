@@ -1,0 +1,8 @@
+{
+    "title": "Data Link Layer",
+    "pages": [
+        "01-framing",
+        "02-whitening",
+        "03-error-correction"
+    ]
+}
