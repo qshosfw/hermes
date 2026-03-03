@@ -1,6 +1,6 @@
 import { baseOptions } from '@/lib/layout.shared';
 import { HomeLayout } from 'fumadocs-ui/layouts/home';
-import AdvancedMeshSimulator from '@/components/visualizer/AdvancedMeshSimulator';
+import MeshVisualizer from '@/components/visualizer/MeshVisualizer';
 
 export default function SimulatorPage() {
     return (
@@ -11,7 +11,7 @@ export default function SimulatorPage() {
                     <p className="text-muted-foreground">Interactively simulate Hermes Link mesh routing and interference patterns.</p>
                 </div>
                 <div className="max-w-6xl mx-auto border rounded-xl overflow-hidden bg-background shadow-2xl">
-                    <AdvancedMeshSimulator />
+                    <MeshVisualizer />
                 </div>
             </div>
         </HomeLayout>

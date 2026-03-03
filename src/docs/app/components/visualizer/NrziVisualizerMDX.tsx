@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import NrziVisualizer from './NrziVisualizer';
-import { textToBytes, generatePn15Sequence, whiten, nrziEncode } from './hermesProtocol';
+import { textToBytes, generatePn15Sequence, whiten } from './hermesProtocol';
 
 export function NrziVisualizerMDX() {
     const data = useMemo(() => {
@@ -11,7 +11,8 @@ export function NrziVisualizerMDX() {
         const pn15 = generatePn15Sequence(128, 0x2F2A);
         const syncByte = new Uint8Array([0x2F, 0x2A, 0x11, 0xDB]);
         const whitened = whiten(new Uint8Array(128), syncByte, pn15); // Just a mock whitened buffer
-        const levels = nrziEncode(whitened);
+        // Mock NRZI encode simply to build the UI array
+        const levels = new Array(whitened.length * 8).fill(0).map((_, i) => i % 2 === 0 ? 1 : -1);
 
         return { whitened, levels };
     }, []);
