@@ -5,7 +5,7 @@ description: On-device user experience architecture, view state machine, chat re
 
 import { Smartphone, MessageSquare, Users, Radio, Settings, Eye, Send, Shield, Zap, Activity, Bell } from 'lucide-react';
 
-# <Smartphone className="inline w-6 h-6 mr-2 text-sky-400" /> 15. Device User Experience
+# <Smartphone className="inline w-6 h-6 mr-2 text-sky-400" /> 8. Device User Experience
 
 The Hermes application layer drives a complete **on-device messenger UX** designed for resource-constrained embedded displays (128×64 monochrome LCD). This section documents the full view architecture, rendering algorithms, and interaction patterns that make up the device experience.
 
@@ -37,6 +37,7 @@ The UI operates as a **finite state machine** with 11 distinct views. Navigation
 ### 15.1.2 Navigation Graph
 
 ```mermaid
+%%{init: {'themeVariables': {'clusterBkg': 'transparent'}}}%%
 stateDiagram-v2
     [*] --> MENU
     MENU --> CHANNEL : Select "Broadcast"

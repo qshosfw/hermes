@@ -6,12 +6,12 @@ import defaultMdxComponents from 'fumadocs-ui/mdx';
 import { Mermaid } from 'fumadocs-mermaid/ui';
 import React, { useEffect, useState, Suspense } from 'react';
 import browserCollections from 'fumadocs-mdx:collections/browser';
-import { FileText } from 'lucide-react';
+import { FileText, Shield, Globe, Cpu } from 'lucide-react';
 
 export function meta({ }: Route.MetaArgs) {
     return [
-        { title: 'Hermes Protocol - Complete Print Specification' },
-        { name: 'description', content: 'Aggregated Hermes Protocol Documentation for PDF Export' },
+        { title: 'RFC: Hermes Protocol Specification' },
+        { name: 'description', content: 'Official Formal Specification for the Hermes Link Protocol' },
     ];
 }
 
@@ -33,7 +33,7 @@ class MermaidErrorBoundary extends React.Component<{ children: React.ReactNode }
         if (this.state.hasError) {
             return (
                 <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-md text-red-400 font-mono text-xs overflow-auto my-4">
-                    <p className="font-bold mb-2">Failed to render Mermaid diagram:</p>
+                    <p className="font-bold mb-2 text-black">Failed to render Mermaid diagram:</p>
                     <pre className="whitespace-pre-wrap">{this.state.error?.message || "Unknown error"}</pre>
                 </div>
             );
@@ -54,20 +54,17 @@ const clientLoader = browserCollections.docs.createClientLoader({
         { path }: { path: string }
     ) {
         return (
-            <div className="print-section print:break-before-page w-full pt-12 pb-8">
-                <div className="border-b-2 border-black pb-2 mb-8">
-                    <h1 className="text-3xl font-bold font-serif text-black uppercase tracking-widest leading-tight">{frontmatter.title}</h1>
-                    {frontmatter.description && (
-                        <p className="text-sm tracking-wide text-neutral-600 mt-2 font-serif uppercase">
-                            {frontmatter.description}
-                        </p>
-                    )}
+            <div className="print-section print:break-before-page w-full py-8">
+                <div className="border-b border-black/20 pb-1 mb-6 flex justify-between items-baseline">
+                    <span className="text-[10pt] font-serif uppercase tracking-wider text-black/60">
+                        {frontmatter.title}
+                    </span>
+                    <span className="text-[9pt] font-mono text-black/40">
+                        [Hermes RFC Spec]
+                    </span>
                 </div>
-                {/* 
-                  The max-w-none allows MDX components to stretch full A4 width. 
-                  We override fonts to serif for a LaTeX aesthetic.
-                */}
-                <div className="prose prose-neutral max-w-none font-serif text-black print-latex-body prose-headings:font-serif prose-headings:text-black prose-p:text-justify prose-a:text-black prose-a:underline prose-code:font-mono prose-code:text-[0.85em] prose-pre:bg-neutral-100 prose-pre:border prose-pre:border-neutral-300 prose-pre:text-black">
+
+                <div className="prose prose-neutral max-w-none font-serif text-black print-latex-body prose-headings:font-serif prose-headings:text-black prose-headings:uppercase prose-headings:tracking-widest prose-p:text-justify prose-a:text-black prose-a:underline prose-code:font-mono prose-code:text-[0.9em] prose-code:bg-neutral-50 prose-pre:bg-neutral-50 prose-pre:border prose-pre:border-neutral-200 prose-pre:text-black leading-relaxed">
                     <Mdx components={{ ...defaultMdxComponents, Mermaid: SafeMermaid }} />
                 </div>
             </div>
@@ -84,139 +81,185 @@ export default function PrintLayout() {
     const pages = source.getPages();
 
     useEffect(() => {
-        // Since we are loading massive MDX components client-side, give them exactly 3.5 
-        // seconds to fetch, parse, and paint to the DOM, including any Mermaid charts.
+        console.log("RFC Aggregate: Found", pages.length, "documentation modules.");
         const timer = setTimeout(() => {
+            console.log("RFC Aggregate: Setting IS_READY to true.");
             setIsReady(true);
-        }, 3500);
-
+        }, 4000);
         return () => clearTimeout(timer);
     }, []);
 
-    // Secondary effect to fire window.print() after React cleans up the loading overlay DOM
     useEffect(() => {
         if (isReady) {
+            console.log("RFC Aggregate: Triggering window.print().");
             const t = setTimeout(() => {
                 window.print();
-            }, 250);
+            }, 500);
             return () => clearTimeout(t);
         }
     }, [isReady]);
 
     return (
-        <div className="bg-white min-h-screen text-black print:text-black print:bg-white font-serif tracking-tight">
+        <div className="bg-white min-h-screen text-black print:text-black print:bg-white font-serif tracking-tight selection:bg-neutral-200">
+            {/* RFC Institutional Styles */}
             <style>{`
+                @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+                :root {
+                    --font-serif: 'Crimson Pro', 'Georgia', serif;
+                    --font-mono: 'JetBrains Mono', monospace;
+                }
+
+                @media screen {
+                    body {
+                        background-color: #f5f5f5;
+                    }
+                }
+
                 @media print {
                     @page {
                         size: A4;
-                        margin: 2.5cm;
+                        margin: 2.5cm 2cm;
                     }
-                    /* Base styles for LaTeX feel */
+                    
                     body {
+                        font-family: var(--font-serif);
                         font-size: 11pt;
-                        line-height: 1.6;
+                        line-height: 1.5;
                         color: black !important;
                         background: white !important;
                     }
-                    /* Number pages via CSS counters if possible */
-                    @page {
-                        @bottom-right {
-                            content: counter(page);
-                            font-family: serif;
-                            font-size: 10pt;
-                        }
+
+                    h1, h2, h3, h4, h5, h6 {
+                        page-break-after: avoid;
                     }
-                    /* Aggressive Light Mode overwrite for React Components natively trapped in dark mode */
-                    .print-section [class*="bg-neutral-8"],
-                    .print-section [class*="bg-neutral-9"],
-                    .print-section [class*="bg-neutral-950"],
-                    .print-section [class*="bg-black"] {
-                        background-color: transparent !important;
-                        border: 1px solid #d4d4d8 !important;
+
+                    pre, blockquote {
+                        page-break-inside: avoid;
                     }
-                    .print-section [class*="text-neutral-"],
-                    .print-section [class*="text-white"],
-                    .print-section [class*="text-amber-"],
-                    .print-section [class*="text-rose-"],
-                    .print-section [class*="text-sky-"],
-                    .print-section [class*="text-emerald-"] {
-                        color: black !important;
+
+                    .print-section {
+                        page-break-inside: auto;
                     }
-                    .print-section svg text {
-                        fill: black !important;
-                        color: black !important;
+
+                    /* Section-prefix numbering handles via CSS Counters */
+                    body {
+                        counter-reset: section;
                     }
-                    /* Code/Pre formatting overrides */
-                    pre, code {
-                        background-color: #f4f4f5 !important;
-                        border: 1px solid #e4e4e7 !important;
-                        white-space: pre-wrap !important;
-                        word-break: break-all !important;
-                        overflow-x: hidden !important;
-                    }
-                    input, textarea, select {
-                        background-color: transparent !important;
-                        border: 1px solid transparent !important;
-                        border-bottom: 1px solid #e4e4e7 !important;
-                        color: black !important;
-                        box-shadow: none !important;
-                    }
-                    /* Hide anything interactive during physical print */
-                    button, input[type="checkbox"], .no-print, nav, header {
+
+                    /* Aggressive UI removal */
+                    button, nav, header, footer, .no-print {
                         display: none !important;
                     }
+
+                    /* Markdown Overrides for Proper RFC look */
+                    .prose {
+                        font-size: 11pt;
+                    }
+                    
+                    /* Code styling for print */
+                    pre, code {
+                        background-color: #fafafa !important;
+                        border: 0.5pt solid #eee !important;
+                        font-family: var(--font-mono) !important;
+                        font-size: 9.5pt !important;
+                    }
+
+                    /* Table handling */
+                    table {
+                        width: 100% !important;
+                        border-collapse: collapse !important;
+                        font-size: 10pt !important;
+                    }
+                    th, td {
+                        border: 0.5pt solid #ddd !important;
+                        padding: 6pt !important;
+                    }
                 }
+
+                .font-serif { font-family: var(--font-serif); }
+                .font-mono { font-family: var(--font-mono); }
             `}</style>
 
-            <main className="max-w-[750px] mx-auto p-12 print:p-0">
+            <main className="max-w-[850px] mx-auto p-16 print:p-0 bg-white shadow-xl print:shadow-none min-h-screen ring-1 ring-black/5 print:ring-0">
 
-                {/* LaTeX-style Cover Page */}
-                <div className="min-h-screen flex flex-col items-center justify-center text-center space-y-8 print:break-after-page mb-24 print:mb-0">
-                    <div className="mb-8 opacity-80">
-                        <FileText className="w-24 h-24 mx-auto text-black" />
+                {/* RFC FORMAL COVER PAGE */}
+                <div className="min-h-screen flex flex-col print:break-after-page mb-24 print:mb-0 relative py-12">
+
+                    {/* Header Block */}
+                    <div className="flex justify-between border-b-2 border-black pb-8 mb-16 items-start">
+                        <div className="space-y-1 font-mono text-[10pt] uppercase tracking-tighter text-black/70">
+                            <p>Network Working Group</p>
+                            <p>Request for Comments: 0001</p>
+                            <p>Category: Standards Track</p>
+                            <p>ISSN: 2070-1721</p>
+                        </div>
+                        <div className="text-right space-y-1 font-mono text-[10pt] text-black/70">
+                            <p>Hermes Project</p>
+                            <p>March 2026</p>
+                        </div>
                     </div>
 
-                    <div className="border-t-4 border-b-4 border-black py-10 w-full mb-8">
-                        <h1 className="text-4xl md:text-5xl font-bold mb-6 tracking-widest uppercase text-black">
-                            Hermes Protocol
+                    {/* Title Block */}
+                    <div className="text-center py-20 space-y-6">
+                        <h1 className="text-5xl font-bold tracking-normal uppercase font-serif border-y-4 border-black py-12 mb-12">
+                            Hermes Link Protocol<br />
+                            <span className="text-2xl font-normal lowercase italic tracking-normal">(Version 1.1)</span>
                         </h1>
-                        <h2 className="text-xl md:text-2xl font-normal tracking-wider text-black max-w-[600px] mx-auto leading-relaxed">
-                            Formal specification for a highly-resilient<br />
-                            Low Power Radio Network architecture.
-                        </h2>
+
+                        <div className="max-w-xl mx-auto space-y-8">
+                            <div className="flex items-center justify-center space-x-12 opacity-80">
+                                <Shield className="w-12 h-12" />
+                                <Globe className="w-12 h-12" />
+                                <Cpu className="w-12 h-12" />
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="text-md text-black/80 font-bold uppercase tracking-widest mt-16 space-y-2">
-                        <p>Request For Comments (RFC)</p>
-                        <p>Generated Document Specification</p>
-                    </div>
+                    {/* Abstract Block */}
+                    <div className="mt-auto bg-neutral-50 p-12 border border-black/10 rounded-sm italic">
+                        <h3 className="font-mono text-xs uppercase tracking-[0.3em] font-bold mb-4 text-black/60">Abstract</h3>
+                        <p className="text-[12pt] leading-relaxed text-black/80 font-serif">
+                            This document specifies Hermes Link, a resilient, encrypted digital mesh protocol designed specifically for
+                            hardware-constrained VHF/UHF transceivers. Hermes integrates AES-256 equivalent security via ChaCha20-Poly1305,
+                            Reed-Solomon forward error correction, and link-quality aware controlled flooding to provide a robust
+                            communication substrate for disaster-recovery, off-grid telemetry, and secure tactical messaging.
+                        </p>
 
-                    <div className="absolute bottom-24 text-sm text-black/60 font-bold tracking-[0.2em] uppercase">
-                        {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                        <div className="mt-8 flex justify-between items-end border-t border-black/5 pt-6 font-mono text-[9pt] text-black/40">
+                            <div>
+                                <p className="uppercase tracking-widest text-black/60 font-bold mb-1">Status of this Memo</p>
+                                <p>This is an Internet Standards Track document.</p>
+                            </div>
+                            <div className="text-right">
+                                <p>© 2026 QSHOSFW Project</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                {/* Aggregated Content within a single Suspense so they wait for each other */}
-                <Suspense fallback={null}>
-                    {pages.map(page => (
-                        <PrintSection key={page.url} page={page} />
-                    ))}
-                </Suspense>
+                {/* CONTENT PAGES */}
+                <div className="space-y-12">
+                    <Suspense fallback={null}>
+                        {pages.map(page => (
+                            <PrintSection key={page.url} page={page} />
+                        ))}
+                    </Suspense>
+                </div>
 
             </main>
 
-            {/* Non-print UI Loading Box */}
+            {/* PREVIEW LOADING OVERLAY */}
             {!isReady && (
-                <div className="fixed inset-0 bg-neutral-900/80 backdrop-blur-sm flex flex-col items-center justify-center z-50 print:hidden text-white transition-opacity duration-300">
-                    <div className="space-y-6 flex flex-col items-center max-w-[400px] text-center">
-                        <div className="relative w-16 h-16">
-                            <div className="absolute inset-0 rounded-full border-4 border-neutral-700/50"></div>
-                            <div className="absolute inset-0 rounded-full border-4 border-white border-t-transparent animate-[spin_1.5s_linear_infinite]"></div>
+                <div className="fixed inset-0 bg-white flex flex-col items-center justify-center z-50 print:hidden text-black transition-opacity duration-300">
+                    <div className="space-y-8 flex flex-col items-center max-w-[500px] text-center">
+                        <div className="w-24 h-24 border-t-2 border-black rounded-full animate-spin"></div>
+                        <div className="space-y-2">
+                            <h3 className="text-2xl font-bold uppercase tracking-widest font-serif">Compiling Formal RFC Spec</h3>
+                            <p className="text-sm text-neutral-500 font-serif lowercase italic">
+                                assembling 28 modules, typesetting serif typography, and calculating page flows...
+                            </p>
                         </div>
-                        <h3 className="text-xl font-bold uppercase tracking-widest font-mono">Generating PDF Spec</h3>
-                        <p className="text-xs text-neutral-400 font-mono">
-                            Aggregating all dynamic MDX modules, compiling Markdown trees, and injecting LaTeX print typography constraints.
-                        </p>
                     </div>
                 </div>
             )}

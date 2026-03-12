@@ -9,6 +9,26 @@ import { Cpu, Terminal, Zap, Activity } from 'lucide-react';
 
 This document provides a bit-level exhaustive reference for implementing the Hermes Link physical layer on the Beken **BK4819** transceiver. All values are hexadecimal unless otherwise specified.
 
+## 0. Hardware Initialization Flow
+
+The following sequence MUST be followed to reliably enter FSK1200 mode from a cold boot.
+
+```mermaid
+sequenceDiagram
+    participant MCU
+    participant BK as BK4819
+    
+    MCU->>BK: REG_30 := 0x0003 (Enable DSP)
+    MCU->>BK: REG_72 := 0x3065 (1200bps Word)
+    MCU->>BK: REG_70 := 0x00E0 (Tone2 + Gain 96)
+    MCU->>BK: REG_58 := 0x2C01 (FFSK Mode + Enable)
+    MCU->>BK: REG_5A := 0x5555 (Sync 0-1)
+    MCU->>BK: REG_5B := 0x55AA (Sync 2-3)
+    MCU->>BK: REG_5D := 0x8000 (128B Frames)
+    MCU->>BK: REG_02 := 0xFFFF (Clear ISR)
+    Note over MCU,BK: Ready for RX/TX
+```
+
 ## 1. Power & Initialization
 
 Before configuring the FFSK modem, the internal DSP and PLL must be enabled.

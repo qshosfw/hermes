@@ -79,33 +79,34 @@ uint32_t Hermes_CalculateBackoff(int8_t snr, uint8_t ttl) {
 At every hop, a router performs the following operations in sequence:
 
 ```mermaid
+%%{init: {'themeVariables': {'clusterBkg': 'transparent'}}}%%
 graph TD
     A["Receive 128B Frame"] --> B["RS Decode (FEC)"]
-    B --> C{"Outer MAC Valid?<br/>(K_mesh)"}
+    B --> C{"Outer MAC Valid?<br/>(K_net)"}
     C -- No --> DROP["🚫 Drop Packet"]
-    C -- Yes --> D["Unwrap Outer Layer"]
+    C -- Yes --> D["Remove Outer Obfuscation<br/>(K_net)"]
     D --> E{"Packet ID in Cache?"}
     E -- Yes --> DROP
     E -- No --> F["Add to Dedup Cache"]
     F --> G{"Am I Destination?"}
-    G -- Yes --> H["Inner Decrypt (K_scope)"]
+    G -- Yes --> H["Inner Decrypt<br/>(Inner AEAD)"]
     G -- No --> I["Decrement TTL"]
     I --> J{"TTL = 0?"}
     J -- Yes --> DROP
     J -- No --> K["Generate New Hop Nonce"]
-    K --> L["Regenerate Outer MAC"]
+    K --> L["Apply Outer Obfuscation & MAC"]
     L --> M["SNR-Weighted Backoff"]
     M --> N["RE-TRANSMIT"]
 
-    classDef normal fill:#1e1e2e,stroke:#6366f1,stroke-width:1px,color:white
-    classDef drop fill:#451a03,stroke:#ef4444,stroke-width:2px,color:white
-    classDef good fill:#052e16,stroke:#22c55e,stroke-width:2px,color:white
+    classDef normal fill:transparent,stroke:#6366f1,stroke-width:1px,color:inherit
+    classDef drop fill:transparent,stroke:#ef4444,stroke-width:2px,color:inherit
+    classDef good fill:transparent,stroke:#22c55e,stroke-width:2px,color:inherit
     class A,B,C,D,E,F,G,I,J,K,L,M normal
     class DROP drop
     class H,N good
 ```
 
-**Key property:** The Inner Layer (encrypted with $K_{scope}$) is **never touched** by routers. They only validate and regenerate the Outer Layer ($K_{mesh}$), which means routers cannot read message contents — they only verify that the packet belongs to their mesh.
+**Key property:** The **Inner Layer** is **never touched** by routers. They only remove the outer obfuscation to read routing metadata and then re-apply the **Outer Layer** with a new Hop Nonce. Routers verify the **Outer MAC** to ensure the packet belongs to their mesh, but they lack the keys to decrypt the inner layer.
 
 ---
 

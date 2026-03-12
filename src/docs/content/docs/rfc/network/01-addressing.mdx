@@ -73,7 +73,7 @@ void Encode(const char* callsign, uint8_t* pUChar) {
 
 ## 1.2 Address Space
 
-Because $40^9 < 2^{48}$, there areaddresses that cannot be represented by 9-character Base40 strings.
+Because $40^9 < 2^{48}$, there are addresses that cannot be represented by 9-character Base40 strings.
 
 | Address Range | Category | Description |
 | :--- | :--- | :--- |
@@ -95,6 +95,9 @@ graph TD
     U -->|Scope Label 'U'| U_Key[Pairwise Key]
     G -->|Scope Label 'M'| G_Key[Group Key]
     B -->|Scope Label 'B'| B_Key[Network Key]
+
+    classDef normal fill:transparent,stroke:#3b82f6,stroke-width:1px,color:inherit
+    class M,U,G,B,U_Key,G_Key,B_Key normal
 ```
 
 > [!NOTE]

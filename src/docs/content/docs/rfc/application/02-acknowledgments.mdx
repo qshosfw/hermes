@@ -1,12 +1,12 @@
 ---
-title: Type 0 Acknowledgment
+title: "Type 0: Acknowledgment"
 description: Detailed byte structure for ACK packets (Nonce, Signatures, Bitfields, Telemetry Blobs)
 ---
 
 import { CheckCircle2, ShieldCheck, Activity, Zap, MapPin, Gauge, Radio } from 'lucide-react';
 import AckVisualizerMDX from '@/components/visualizer/AckVisualizerMDX';
 
-# <CheckCircle2 className="inline w-6 h-6 mr-2 text-emerald-400" /> 9. Type 0: Acknowledgment (ACK)
+# <CheckCircle2 className="inline w-6 h-6 mr-2 text-emerald-400" /> 2. Type 0: Acknowledgment (ACK)
 
 When a packet requests an Acknowledgment (`Want Ack` = 1), the receiving node responds rapidly with a **Type 0** Packet to definitively confirm reception (or explicitly request mesh retransmission).
 
@@ -18,15 +18,24 @@ When a packet requests an Acknowledgment (`Want Ack` = 1), the receiving node re
 The ACK payload completely utilizes the 56-byte envelope constraint to securely sign for the target packet while simultaneously supplying highly compressed backchannel data.
 
 ```mermaid
+%%{init: {'themeVariables': {'clusterBkg': 'transparent'}}}%%
 graph LR
-    A["ACKed Packet ID<br/>(6 Bytes)"] --- B["ACKed Inner MAC<br/>(8 Bytes)"] --- C["Bitfields<br/>(1 Byte)"] --- D["Health Blob<br/>(5 Bytes)"] --- E["Location Blob<br/>(17 Bytes)"]
-    classDef default fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:white;
+    subgraph 56-Byte Envelope
+        direction LR
+        A["Packet ID<br/>(6B)"] --- B["Inner MAC<br/>(8B)"] --- C["Bitfield<br/>(1B)"] --- D["Health<br/>(5B)"] --- E["Location<br/>(17B)"]
+    end
+    
+    classDef data fill:transparent,stroke:#89b4fa,stroke-width:2px,color:inherit
+    classDef opt fill:transparent,stroke:#a855f7,stroke-width:2px,stroke-dasharray: 4 4,color:inherit
+    
+    class A,B,C data
+    class D,E opt
 ```
 
 | Field | Range (Bytes) | Description |
 |---:|---:|---|
 | **ACKed Packet ID** | `0 - 5` (6 Bytes) | The unique 48-bit identifier of the packet being ACKed. |
-| **ACKed Inner MAC** | `6 - 13` (8 Bytes) | The static e2e Poly1305 signature of the subject packet's payload. |
+| **Inner MAC** | `6 - 13` (8 Bytes) | The static e2e Poly1305 signature of the subject packet's payload. |
 | **Bitfields** | `14` (1 Byte) | Contains routing statuses, fragment definitions, and telemetry toggles. |
 | **Health Blob** | `15 - 19` (5 Bytes) *(Optional)* | Active if the Telemetry bit is `1`. RSSI metrics, LQI, and Battery Voltage. |
 | **Location Blob** | `20 - 36` (17 Bytes) *(Optional)* | Active if the Telemetry bit is `1`. Packed GPS latitude, longitude, and heading data. |
@@ -56,21 +65,21 @@ The Link Quality Indicator (LQI) provides a robust `0-255` metric evaluating the
 
 LQI evaluates the Signal-to-Noise Ratio (SNR) for the Forward (ACKed) and Reverse (ACKing) paths. SNR is derived by subtracting the `Idle RSSI` ($R_{idle}$) from the target packet RSSI ($R_{pkt}$ or $R_{ack}$):
 
-$$
-S_{fwd} = R_{pkt} - R_{idle} \quad \text{and} \quad S_{rev} = R_{ack} - R_{idle}
-$$
+```math
+S_fwd = R_pkt - R_idle \quad \text{and} \quad S_rev = R_ack - R_idle
+```
 
 For each path, we evaluate an integer representation of the Link Probability curve. Centered at a Midpoint of $M=6$ and Scale of $K=2$:
 
-$$
-P_{int}(S) = 127 + \frac{(S - M) \ll 7}{|S - M| + K}
-$$
+```math
+P_int(S) = 127 + \frac {(S - M) * 128} {|S - M| + K}
+```
 
 The final `0-255` integer representation transmitted is the combined average of the forward and reverse paths, safely clamped to byte boundaries:
 
-$$
-LQI_{fast} = \text{clamp}\left(0, \frac{P_{int}(S_{fwd}) + P_{int}(S_{rev})}{2}, 255\right)
-$$
+```math
+LQI_fast = \text{clamp}(0, \frac {P_int(S_fwd) + P_int(S_rev)} {2}, 255)
+```
 
 > [!TIP]
 > **Embedded Optimization:** Multiplication by `128` is heavily optimized inside embedded ARM Cortex chips directly as a left bit-shift operator (`<< 7`), while `|x|` maps to `abs()`. This approach flawlessly maps an S-curve logistic regression spanning `0` to `255` utilizing strict integer division avoiding all floating-point operations.
@@ -128,4 +137,4 @@ Use this tool to simulate different network scenarios and see how the ACK payloa
 <AckVisualizerMDX />
 
 > [!IMPORTANT]
-> **MAC Validation**: A node MUST NOT process an ACK unless the **ACKed Inner MAC** exactly matches the Poly1305 signature of a packet in its outgoing buffer. This prevents "ACK spoofing" in the mesh.
+> **MAC Validation**: A node MUST NOT process an ACK unless the **Inner MAC** exactly matches the Poly1305 signature of a packet in its outgoing buffer. This prevents "ACK spoofing" in the mesh.

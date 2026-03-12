@@ -6,33 +6,33 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function generatePDF() {
-  console.log("Launching headless browser...");
-  const browser = await puppeteer.launch({ headless: 'new' });
+  console.log("Launching headless browser for RFC Specification...");
+  const browser = await puppeteer.launch({
+    headless: 'new',
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
   const page = await browser.newPage();
 
   // Point to the local dev server
-  const url = 'http://localhost:5173/print'; // Vite default port (using 5173)
-
+  const url = 'http://localhost:5173/print';
 
   console.log(`Navigating to ${url}...`);
 
   try {
-    // Wait until network is idle to ensure all React suspense and MDX is loaded
-    await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 });
+    // Wait for the aggregation of 28+ MDX modules
+    await page.goto(url, { waitUntil: 'networkidle0', timeout: 90000 });
 
-    // Additional wait for the custom React logic to finish removing the loading screen
-    console.log("Waiting for rendering completion...");
-    await page.waitForSelector('.print-section', { timeout: 30000 });
+    console.log("Waiting for RFC Aggregation and Mermaid rendering...");
+    await page.waitForSelector('.print-section', { timeout: 60000 });
 
-    // Wait for our artificial loading screen timeout 
-    await new Promise(r => setTimeout(r, 4000));
+    // Ensure the serif fonts from Google Fonts have landed
+    await new Promise(r => setTimeout(r, 6000));
 
-    // Force Light Mode via Media Query so Tailwind `dark:` classes don't bleed into PDF
+    // Force Light Mode for consistent institutional look
     await page.emulateMediaFeatures([
       { name: 'prefers-color-scheme', value: 'light' },
     ]);
 
-    // Force remove dark class and inline styles that clip PDFs
     await page.evaluate(() => {
       document.documentElement.classList.remove('dark');
       document.documentElement.classList.add('light');
@@ -41,19 +41,20 @@ async function generatePDF() {
       style.innerHTML = `
         * {
           overflow: visible !important;
+          -webkit-print-color-adjust: exact !important;
         }
         pre, code {
+          background-color: #fafafa !important;
           white-space: pre-wrap !important;
-          word-break: break-word !important;
+          word-break: break-all !important;
         }
       `;
       document.head.appendChild(style);
     });
 
     const outputPath = path.resolve(__dirname, '../public/hermes-protocol-spec.pdf');
-    console.log(`Generating A4 PDF to ${outputPath}...`);
+    console.log(`Generating High-Fidelity RFC PDF to ${outputPath}...`);
 
-    // Override page margin to give LaTeX feel via puppeteer settings
     await page.pdf({
       path: outputPath,
       format: 'A4',
@@ -61,21 +62,21 @@ async function generatePDF() {
       displayHeaderFooter: true,
       headerTemplate: '<div></div>',
       footerTemplate: `
-        <div style="width: 100%; font-size: 10px; font-family: serif; text-align: center; color: black; padding-bottom: 20px;">
-          <span class="pageNumber"></span>
+        <div style="width: 100%; font-size: 9pt; font-family: 'Crimson Pro', serif; text-align: right; color: #444; padding-right: 1.5cm; padding-bottom: 0.5cm;">
+          [RFC-0001] — Page <span class="pageNumber"></span> of <span class="totalPages"></span>
         </div>
       `,
       margin: {
-        top: '2cm',
+        top: '1.5cm',
         bottom: '2cm',
-        left: '2cm',
-        right: '2cm'
+        left: '0cm',
+        right: '0cm'
       }
     });
 
-    console.log("Success! PDF generated at: " + outputPath);
+    console.log("Success! Formal RFC Specification generated at: " + outputPath);
   } catch (err) {
-    console.error("Error generating PDF:", err);
+    console.error("Error generating RFC PDF:", err);
   } finally {
     await browser.close();
   }

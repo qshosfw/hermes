@@ -1,11 +1,11 @@
 ---
-title: Type 1 Ping
+title: "Type 1: Ping"
 description: The packet network infrastructure for Pings and Mesh hop path tracing
 ---
 
 import { Locate, Route, Zap, Network } from 'lucide-react';
 
-# <Locate className="inline w-6 h-6 mr-2 text-blue-400" /> 10. Type 1: Ping
+# <Locate className="inline w-6 h-6 mr-2 text-blue-400" /> 3. Type 1: Ping
 
 The `Type 1 Ping` payload exists natively inside Hermes to trace valid RF hops out to adjacent nodes.
 
@@ -22,7 +22,8 @@ graph LR
     A["Hop 1<br/>(6B)"] --- B["Hop 2<br/>(6B)"] --- C["Hop 3<br/>(6B)"]
     C --- D["Hop 4<br/>(6B)"] --- E["Hop 5<br/>(6B)"] --- F["Hop 6<br/>(6B)"]
     F --- G["Hop 7<br/>(6B)"] --- H["Hop 8<br/>(6B)"] --- I["Hop 9<br/>(6B)"]
-    classDef default fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:white;
+    
+    classDef default fill:transparent,stroke:#89b4fa,stroke-width:2px,color:inherit
 ```
 
 As the physical packet hops to limit the `TTL` Transport block, each consecutive Hermes relay node checks the Ping mapping.
@@ -50,7 +51,7 @@ When a router forwards a PING packet:
 
 1. It scans the payload for the first block of six `0x00` bytes.
 2. It inserts its own **6-byte Node Address** into that slot.
-3. It regenerates the Outer MAC and forwards the packet.
+3. It re-obfuscates the packet, calculates a new **Outer MAC**, and forwards it.
 
 ```c
 void Hermes_ProcessPingRelay(uint8_t* payload) {

@@ -17,6 +17,23 @@ Every transmission consists of exactly **148 bytes** on the air:
 - **4 Bytes**: Sync Word
 - **128 Bytes**: Data Block (FEC Encoded)
 
+```mermaid
+%%{init: {'themeVariables': {'clusterBkg': 'transparent'}}}%%
+graph LR
+    subgraph "Full 148-Byte On-Air Frame"
+        P[Preamble<br/>16B] --> S[Sync Word<br/>4B]
+        S --> D[Data Block<br/>128B]
+    end
+
+    classDef preamble fill:transparent,stroke:#94a3b8,stroke-width:1px,color:inherit
+    classDef sync fill:transparent,stroke:#f59e0b,stroke-width:2px,color:inherit
+    classDef data fill:transparent,stroke:#3b82f6,stroke-width:2px,color:inherit
+    
+    class P preamble
+    class S sync
+    class D data
+```
+
 ## 1.2 The 128-Byte Data Block
 
 The data block is a single Reed-Solomon codeword. Internally, it is divided into the functional packet (96 bytes) and the parity overhead (32 bytes).
@@ -25,8 +42,8 @@ The data block is a single Reed-Solomon codeword. Internally, it is divided into
 | :--- | :--- | :--- | :--- |
 | 0 - 23 | **Header** | 24 Bytes | Routing, TTL, and Nonce |
 | 24 - 79 | **Payload** | 56 Bytes | User/Application data |
-| 80 - 87 | **Inner MAC** | 8 Bytes | Authenticated Payload Signature |
-| 88 - 95 | **Outer MAC** | 8 Bytes | Authenticated Header Signature |
+| 80 - 87 | **Inner MAC** | 8 Bytes | Inner Layer Integrity |
+| 88 - 95 | **Outer MAC** | 8 Bytes | Outer Layer Integrity |
 | 96 - 127 | **RS Parity** | 32 Bytes | Forward Error Correction |
 
 ## 1.3 Bit-Level Layout

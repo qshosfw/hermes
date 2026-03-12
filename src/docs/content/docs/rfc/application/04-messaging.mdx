@@ -1,12 +1,12 @@
 ---
-title: Messaging
+title: "Type 2: Messaging"
 description: Text chat and GSM-7 encoding specifics
 ---
 
 import { MessageSquare, Type, Zap } from 'lucide-react';
 import Gsm7VisualizerMDX from '@/components/visualizer/Gsm7VisualizerMDX';
 
-# <MessageSquare className="inline w-6 h-6 mr-2 text-indigo-400" /> 2. Messaging
+# <MessageSquare className="inline w-6 h-6 mr-2 text-indigo-400" /> 4. Type 2: Messaging
 
 The **Type 2 (MESSAGE)** packet is the primary carrier for text communication. It maximizes the 56-byte window to provide high-capacity chat over low-bandwidth RF.
 
@@ -23,6 +23,33 @@ Septets are packed into 8-bit octets using a **bit-packed, sliding-window scheme
 - **1st Septet**: Bytes 0 (bits 0–6). Bit 7 is spare for the next septet.
 - **2nd Septet**: Starts at Bit 7 of Byte 0, continues into Bits 0–5 of Byte 1.
 - **3rd Septet**: Starts at Bit 6 of Byte 1, continues into Bits 0–4 of Byte 2.
+
+```mermaid
+%%{init: {'themeVariables': {'clusterBkg': 'transparent'}}}%%
+graph TD
+    subgraph Octet 1
+        direction LR
+        B0_0["Bit 0"] -.-> B0_6["Bit 6"]
+        B0_7["Bit 7"]
+    end
+    
+    subgraph Octet 2
+        direction LR
+        B1_0["Bit 0"] -.-> B1_5["Bit 5"]
+        B1_6["Bit 6"] -.-> B1_7["Bit 7"]
+    end
+    
+    %% Septet Mappings
+    S1["Septet 1 (7 Bits)"] --> B0_0
+    S2["Septet 2 (7 Bits)"] --> B0_7
+    S2 --> B1_0
+    S3["Septet 3 (7 Bits)"] --> B1_6
+    
+    classDef septet fill:transparent,stroke:#3b82f6,stroke-width:2px,color:inherit
+    classDef octet fill:transparent,stroke:#89b4fa,stroke-width:1px,stroke-dasharray: 4 4,color:inherit
+    
+    class S1,S2,S3 septet
+```
 
 This repeats such that every **(n * 7) bits** are packed into **ceil(n * 7 / 8)** bytes.
 

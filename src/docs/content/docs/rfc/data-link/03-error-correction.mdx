@@ -39,6 +39,7 @@ p(x) = x^8 + x^4 + x^3 + x^2 + 1
 The FEC engine is explicitly the **last stage** in the transmission pipeline and the **first stage** in the reception pipeline.
 
 ```mermaid
+%%{init: {'themeVariables': {'clusterBkg': 'transparent'}}}%%
 graph TD
     subgraph "Transmission (Tx)"
     T1[96B Whitened] --> T2[RS Encode]

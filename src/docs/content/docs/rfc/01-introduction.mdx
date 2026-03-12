@@ -24,6 +24,7 @@ To understand the Hermes Protocol, one must understand how it categorizes the ac
 - **Subnet**: A logical group or partition within a Network. Subnets allow nodes to communicate privately or in specific groups without establishing entirely new Networks.
 
 ```mermaid
+%%{init: {'themeVariables': {'clusterBkg': 'transparent'}}}%%
 graph TD
     subgraph "Hermes Global Network (Shared Sync Word & Key)"
         subgraph "Subnet Alpha (Channel A)"
@@ -38,11 +39,44 @@ graph TD
         C -. "Cross-Subnet Routing" .-> D
     end
 
-    classDef network fill:#0f172a,stroke:#3b82f6,stroke-width:2px,color:white
-    classDef subnet fill:#1e1e2e,stroke:#6366f1,stroke-width:1px,color:white
-    classDef node fill:#111827,stroke:#10b981,stroke-width:2px,color:white
+    classDef network fill:transparent,stroke:#3b82f6,stroke-width:2px,color:inherit
+    classDef subnet fill:transparent,stroke:#6366f1,stroke-width:1px,color:inherit
+    classDef node fill:transparent,stroke:#10b981,stroke-width:2px,color:inherit
     
     class A,B,C,D,E node
 ```
 
 In the subsequent sections of this RFC, we will break down the Hermes Protocol using an OSI-inspired model, starting from the physical RF layer up to the payload applications.
+
+## 1.3 Protocol Stack
+
+```mermaid
+graph BT
+    subgraph "Application Layer"
+        L7[7. Messaging / Telemetry / Discovery]
+    end
+    subgraph "Security Layer"
+        L6[6. AEAD / KDF / Traffic Keys]
+    end
+    subgraph "Transport Layer"
+        L4[4. Headers / ACKs / Flow Control]
+    end
+    subgraph "Network Layer"
+        L3[3. Addressing / Flooding]
+    end
+    subgraph "Data Link Layer"
+        L2[2. Framing / RS FEC / Whitening]
+    end
+    subgraph "Physical Layer"
+        L1[1. FFSK 1200 / BK4819 HAL]
+    end
+
+    L1 --> L2
+    L2 --> L3
+    L3 --> L4
+    L4 --> L6
+    L6 --> L7
+
+    classDef layer fill:transparent,stroke:#3b82f6,stroke-width:2px,color:inherit
+    class L1,L2,L3,L4,L6,L7 layer
+```

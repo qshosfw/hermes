@@ -198,14 +198,15 @@ Routers have limited memory for packet buffers (typically **4-8 packets**).
 If a router's buffer is full, it should **NOT** acknowledge incoming unicast packets that require routing. By failing to ACK, the sender is forced into its own retry backoff, naturally slowing down the network source until the congestion clears.
 
 ```mermaid
+%%{init: {'themeVariables': {'clusterBkg': 'transparent'}}}%%
 graph TD
     A[Source] -->|"Send Pkt #1"| R[Router]
     R -->|"Buffer Full!"| X((Drop))
     R -.->|"No ACK Sent"| A
     A -->|"Timeout → Retry Backoff"| A
     
-    classDef full fill:#451a03,stroke:#ef4444,stroke-width:2px,color:white
-    classDef normal fill:#1e1e2e,stroke:#89b4fa,stroke-width:2px,color:white
+    classDef full fill:transparent,stroke:#ef4444,stroke-width:2px,color:inherit
+    classDef normal fill:transparent,stroke:#89b4fa,stroke-width:2px,color:inherit
     class X full
     class A,R normal
 ```
@@ -223,6 +224,7 @@ This gap allows routing nodes to clear their internal "Transmission Ready" flags
 ### 3.5.1 Fragment Pacing
 
 ```mermaid
+%%{init: {'themeVariables': {'clusterBkg': 'transparent'}}}%%
 graph LR
     F0[Frag 0] --> G0((200ms))
     G0 --> F1[Frag 1]
@@ -231,8 +233,8 @@ graph LR
     F2 --> G2((200ms))
     G2 --> F3["Frag 3 (Last)"]
     
-    classDef frag fill:#1e1e2e,stroke:#6366f1,stroke-width:2px,color:white
-    classDef gap fill:#0f172a,stroke:#f59e0b,stroke-width:1px,stroke-dasharray:5 5,color:#f59e0b
+    classDef frag fill:transparent,stroke:#6366f1,stroke-width:2px,color:inherit
+    classDef gap fill:transparent,stroke:#f59e0b,stroke-width:1px,stroke-dasharray:5 5,color:#f59e0b
     class F0,F1,F2,F3 frag
     class G0,G1,G2 gap
 ```

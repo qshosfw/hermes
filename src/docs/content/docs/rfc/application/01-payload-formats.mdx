@@ -5,15 +5,15 @@ description: High-level overview of the enclosed 56-byte sealed data structure
 
 import { Package, Smartphone, Info, Lock, FileType, Zap } from 'lucide-react';
 
-# <Package className="inline w-6 h-6 mr-2 text-blue-400" /> 8. Payload Extensibility
+# <Package className="inline w-6 h-6 mr-2 text-blue-400" /> 1. Payload Formats
 
-Having physically encoded the packet via FSK, protected its state via interleaved Reed-Solomon(128,96), attached the 24-byte Routing/Addressing parameters via the Transport layer, and ultimately secured it against physical tampering across the mesh via the Split-MAC Nested Trust model...
+Having physically encoded the packet via FSK, protected its state via interleaved Reed-Solomon(128,96), attached the 24-byte Routing/Addressing parameters via the Transport layer, and ultimately secured it against physical tampering across the mesh via the dual-signature nested model...
 
 ...We finally land neatly down inside the **56-Byte Application Payload** shell.
 
 ## 8.1 The 56-Byte Envelope
 
-The Hermes protocol treats these core 56 bytes as a completely agnostic, isolated envelope boundary. All contents inside are mathematically sealed using the Packet ID and Traffic Key discussed in the security documentation.
+The Hermes protocol treats these core 56 bytes as a completely agnostic, isolated envelope boundary. All contents inside are mathematically encrypted using the Packet ID and Traffic Key discussed in the security documentation.
 
 ### 8.1.1 Capacity Math
 
@@ -24,6 +24,20 @@ To maximize message throughput on the narrow FSK1200 physical layer, Hermes diff
 | **Raw Binary** | 8 Bits | 56 Bytes | 896 Bytes |
 | **GSM-7 Text** | 7 Bits | **64 Characters** | **1024 Characters** |
 | **ASCII Text** | 8 Bits | 56 Characters | 896 Characters |
+
+```mermaid
+%%{init: {'themeVariables': {'clusterBkg': 'transparent'}}}%%
+graph LR
+    subgraph 56-Byte Application Envelope
+        direction LR
+        A[Byte 0<br/>Header Type] --> B[Bytes 1-55<br/>Agnostic Application Data]
+    end
+    
+    classDef env fill:transparent,stroke:#3b82f6,stroke-width:2px,color:inherit
+    classDef data fill:transparent,stroke:#89b4fa,stroke-width:1px,color:inherit
+    
+    class A,B data
+```
 
 ### 8.1.2 End-to-End Processing
 
@@ -40,10 +54,10 @@ graph TD
     F -->|Type 2| MSG["Text / Data File"]
     F -->|Type 3| TEL["Sensors / Location"]
     
-    classDef root fill:#0f172a,stroke:#3b82f6,stroke-width:2px,color:white
-    classDef node fill:#1e1e2e,stroke:#6366f1,stroke-width:1px,color:white
-    classDef dest fill:#111827,stroke:#10b981,stroke-width:2px,color:white
-    classDef bad fill:#451a03,stroke:#ef4444,stroke-width:2px,color:white
+    classDef root fill:transparent,stroke:#3b82f6,stroke-width:2px,color:inherit
+    classDef node fill:transparent,stroke:#6366f1,stroke-width:1px,color:inherit
+    classDef dest fill:transparent,stroke:#10b981,stroke-width:2px,color:inherit
+    classDef bad fill:transparent,stroke:#ef4444,stroke-width:2px,color:inherit
     
     class A root
     class B,C,E,F node
@@ -83,4 +97,4 @@ To construct any standard Hermes packet, toggle Addressing, toggle Telemetry bit
 👉 **[Launch Interactive Packet Builder Tool](/docs/tools/packet-builder)**
 
 > [!NOTE]
-> Detailed specifications for ACKs have been moved to [**Application §9: Acknowledgments**](./07-acknowledgments).
+> Detailed specifications for ACKs have been moved to [**Application §9: Acknowledgments**](./02-acknowledgments).

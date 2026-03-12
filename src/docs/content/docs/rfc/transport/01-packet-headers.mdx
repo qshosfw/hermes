@@ -45,27 +45,28 @@ The first two bytes provide dense routing and fragmentation metadata.
 | 4:1 | **Frag Idx** | Fragment number (0-15) |
 | 0 | **Last** | Last fragment flag |
 
-## 1.3 Field Definitions
+## 1.4 Field Definitions
 
-### 1.3.1 Payload Type (4 bits)
+### 1.4.1 Payload Type (4 bits)
 Defines how the subsequent 56-byte payload should be interpreted by the application layer.
 
 | Value | Type | Description |
 | :--- | :--- | :--- |
-| `0x1` | **ACK** | Acknowledgment of a previous packet. |
+| `0x0` | **ACK** | Acknowledgment of a previous packet. |
+| `0x1` | **Ping** | Hop trace diagnostic. |
 | `0x2` | **Message** | Human-readable text or data. |
 | `0x3` | **Telemetry** | System status or sensor reports. |
 | `0x4` | **Discovery** | Mesh neighbor announcements. |
 
-### 1.3.2 Addressing Mode (2 bits)
-Determines the routing behavior and key derivation ($K_{scope}$).
+### 1.4.2 Addressing Mode (2 bits)
+Determines the routing behavior and key derivation ($K_{scope}$). See [Traffic Key Derivation](/docs/rfc/security/05-traffic-keys) for details on Scope Labels.
 
 | Value | Mode | Description |
 | :--- | :--- | :--- |
 | `0b00` | **Unicast** | 1-to-1 private communication. |
 | `0b01` | **Multicast** | Group/Channel communication. |
 | `0b10` | **Broadcast** | Delivered to all nodes. |
-| `0b11` | **Reserved** | Future Use. |
+| `0b11` | **Discovery** | Mesh neighbor announcements. |
 
 > [!NOTE]
-> Even though the **Source** address is part of the header, it is shifted by the `Traffic Key` ($K_{scope}$) to provide **Sealed Sender** privacy. Only the Destination and Routing metadata remain in cleartext (well, obfuscated by $K_{mesh}$).
+> Even though the **Source** address is part of the header, it is shifted by the `Traffic Key` ($K_{scope}$) to provide **Inner Encryption** privacy. Only the Destination and Routing metadata remain in cleartext (although obfuscated by the outer layer).

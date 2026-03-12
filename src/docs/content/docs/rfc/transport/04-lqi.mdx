@@ -24,9 +24,9 @@ The Received Signal Strength Indicator measures the total, un-demodulated RF ene
 
 The register provides 0.5 dB resolution. The calibrated power calculation:
 
-$$
+```math
 RSSI_{cal} \text{ (dBm)} = \frac{\text{REG\_67}\langle8:0\rangle}{2} - RSSI_{offset}
-$$
+```
 
 Where $RSSI_{offset}$ is typically $130 \pm 30$ depending on the hardware front-end, LNA stages, and AGC index.
 
@@ -60,9 +60,9 @@ By combining all three values, the sender gains a complete picture of the **bidi
 
 SNR is computed for both paths:
 
-$$
+```math
 S_{fwd} = R_{pkt} - R_{idle} \quad \text{and} \quad S_{rev} = R_{ack} - R_{idle}
-$$
+```
 
 ---
 
@@ -80,15 +80,15 @@ The Elliot activation function provides an excellent approximation of standard l
 
 For each path, evaluate the integer Link Probability curve centered at Midpoint $M=6$ dB and Scale $K=2$:
 
-$$
+```math
 P_{int}(S) = 127 + \frac{(S - M) \times 128}{\lvert S - M \rvert + K}
-$$
+```
 
 The final `0-255` value is the average of both paths:
 
-$$
+```math
 LQI_{fast} = \text{clamp}\left(0, \frac{P_{int}(S_{fwd}) + P_{int}(S_{rev})}{2}, 255\right)
-$$
+```
 
 > [!TIP]
 > **Embedded Optimization:** Multiplication by `128` maps directly to a left bit-shift (`<< 7`), while `|x|` maps to `abs()`. This produces a smooth S-curve logistic regression spanning `0` to `255` using strict integer division — no floating-point operations required.
@@ -124,9 +124,9 @@ Hermes replaces this with **Link-Quality Aware CSMA** (LQ-CSMA): nodes with high
 
 The random backoff is replaced with a graded function bounded by the real-time forward SNR:
 
-$$
+```math
 M_{delay} = \left\lfloor CW_{base} \times \max\left(0, 1 - \frac{S_{fwd}}{SNR_{target}}\right)^\gamma \right\rfloor
-$$
+```
 
 Where $SNR_{target}$ is the optimal threshold (~20 dB) and $\gamma \ge 1$ is the shaping factor. Higher $\gamma$ creates an aggressive parabolic decay, tightly grouping high-SNR nodes into the earliest slots.
 
@@ -134,9 +134,9 @@ Where $SNR_{target}$ is the optimal threshold (~20 dB) and $\gamma \ge 1$ is the
 
 A purely deterministic backoff can cause **deterministic collisions** when two equidistant nodes measure identical SNR. The final delay includes constrained random jitter:
 
-$$
+```math
 T_{backoff} = (M_{delay} + \text{rand}(0, W_{jitter})) \times T_{slot}
-$$
+```
 
 High-SNR links get minimal jitter (staying prioritized), while poorer links get broader jitter to disaggregate their transmissions.
 

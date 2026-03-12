@@ -3,7 +3,8 @@
     "pages": [
         "01-cryptography",
         "02-key-management",
-        "03-sealed-sender",
-        "04-encryption-pipeline"
+        "03-inner-outer-encryption",
+        "04-encryption-pipeline",
+        "05-traffic-keys"
     ]
 }

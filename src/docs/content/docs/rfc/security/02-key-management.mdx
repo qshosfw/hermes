@@ -16,13 +16,33 @@ To maintain both mesh-wide connectivity and private end-to-end communication, ke
 
 ```mermaid
 graph TD
-    P[Passcode] -->|KDF| Knet[Network Key K_net]
-    Knet -->|Global Salt| Kmesh[Mesh Key K_mesh]
-    Kmesh -->|Target ID| Kscope[Scope Secret K_scope]
+    %% Inputs
+    P([Passcode<br/>Variable Length]) -.-> PAD{Padding<br/>to 64B}
+    S([Network Salt<br/>16B]) -.-> PAD
     
-    style Knet fill:#064e3b,stroke:#059669,color:#fff
-    style Kmesh fill:#1e3a8a,stroke:#2563eb,color:#fff
-    style Kscope fill:#701a75,stroke:#c026d3,color:#fff
+    %% Setup
+    PAD --> M[M = Salt + Passcode<br/>64B]
+    M --> INIT{ChaCha20_Round<br/>Initialize}
+    INIT --> W0[Initial Work Factor<br/>W0]
+    
+    %% Hardening Loop
+    W0 --> LOOP{ChaCha20_PRF<br/>10,000 Iterations}
+    S -.->|Salt 0:11 as Nonce| LOOP
+    LOOP -->|Feedback| LOOP
+    
+    %% Output
+    LOOP --> Knet[Network Key K_net<br/>256-bit]
+    
+    %% Styling
+    classDef input fill:transparent,stroke:#f59e0b,stroke-width:2px,color:inherit
+    classDef process fill:transparent,stroke:#6366f1,stroke-width:1px,color:inherit
+    classDef secret fill:transparent,stroke:#10b981,stroke-width:2px,color:inherit
+    classDef scope fill:transparent,stroke:#c026d3,stroke-width:2px,color:inherit
+    
+    class P,S input
+    class PAD,INIT,LOOP process
+    class M data
+    class Knet secret
 ```
 
 ## 2.2 Interactive Key Derivation
@@ -55,13 +75,13 @@ The KDF stretches a user-provided passcode into a high-entropy 256-bit key while
    - ```math
      W = ChaCha20_PRF(Key = W, Nonce = Salt[0:11])
      ```
-6. **Result**: The final 256-bit $K_{mesh}$ is the current value of $W$.
+6. **Result**: The final 256-bit $K_{net}$ is the current value of $W$.
 
 ## 2.2 KDF Implementation (C)
 
 ```c
 /**
- * @brief Derives the 256-bit Network Key (K_mesh).
+ * @brief Derives the 256-bit Network Key (K_net).
  */
 void Hermes_DeriveNetworkKey(const char* passcode, const uint8_t* salt, uint8_t* out_key) {
     uint8_t current_w[32];
@@ -82,8 +102,8 @@ void Hermes_DeriveNetworkKey(const char* passcode, const uint8_t* salt, uint8_t*
 
 ## 2.3 Key Storage Best Practices
 
-1. **At Rest**: $K_{mesh}$ should be stored in the device's internal **Secure EEPROM** or **Encrypted NVS partition**.
+1. **At Rest**: $K_{net}$ should be stored in the device's internal **Secure EEPROM** or **Encrypted NVS partition**.
 2. **In Use**: The key should be loaded into RAM only once at boot and cleared if the device enters a "Locked" or "Tamper Detected" state.
 
 > [!WARNING]
-> If the **Network Salt** is changed, all nodes must be re-paired with the new salt, as they will be unable to communicate using the old $K_{mesh}$.
+> If the **Network Salt** is changed, all nodes must be re-paired with the new salt, as they will be unable to communicate using the old $K_{net}$.

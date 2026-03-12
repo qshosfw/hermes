@@ -26,6 +26,9 @@ graph LR
     C --> D{Sync Word Match?}
     D -- Yes --> E[Payload Capture]
     D -- No --> C
+
+    classDef normal fill:transparent,stroke:#6366f1,stroke-width:1px,color:inherit
+    class A,B,C,D,E normal
 ```
 
 ## 2.3 Hardware Filtering
